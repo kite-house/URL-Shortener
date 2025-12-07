@@ -32,3 +32,17 @@ async def redirect(url: str):
     
     await crud.translation_count(url)
     return RedirectResponse(address)
+
+@router.get('/info/{url}')
+async def info(url: str):
+    try:
+        url = await crud.get_info_url(url)
+    except ValueError:
+        raise HTTPException(status_code=404, detail='Link not found!')
+    
+    return {
+        'abbreviated_link' : url.abbreviated_link,
+        'address' : url.address,
+        'number_clicks' : url.number_clicks,
+        'date_created' : url.date_created
+    }

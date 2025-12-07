@@ -43,6 +43,15 @@ async def get_url(abbreviated_link: str) -> str:
         
         return url.address
 
+async def get_info_url(abbreviated_link: str) -> str:
+    async with async_session() as session:
+        url = await session.scalar(select(Url).where(Url.abbreviated_link == abbreviated_link))
+
+        if not url:
+            raise ValueError('Not Found')
+        
+        return url
+
 async def get_url_reverse(address: str) -> str:
     async with async_session() as session:
         url = await session.scalar(select(Url).where(Url.address == address))

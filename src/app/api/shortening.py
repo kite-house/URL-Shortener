@@ -1,20 +1,15 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError
-import uvicorn
-import asyncio
 
-from src.schemas import UrlSchema
-from src.url import create_url
+
+from schemas.urls import UrlSchema
+from services.generate_url import create_url
 from db import crud 
 
-app = FastAPI(
-    title = 'Shortening-URLs',
-    description= 'A service for shortening links and redirecting users from a shortened link to an external address'
-)
+router = APIRouter()
 
-
-@app.post('/cutback')
+@router.post('/cutback')
 async def cutback(url: UrlSchema):
     new_url = await create_url()
     try:
@@ -28,7 +23,7 @@ async def cutback(url: UrlSchema):
 
     return {'url' : new_url}
 
-@app.get('/{url}')
+@router.get('/{url}')
 async def redirect(url: str):
     try:
         address = await crud.get_url(url)
@@ -37,11 +32,3 @@ async def redirect(url: str):
     
     await crud.translation_count(url)
     return RedirectResponse(address)
-
-
-if __name__ == "__main__":
-    asyncio.run(crud.async_main())
-    uvicorn.run('main:app', reload=True)
-
-
-

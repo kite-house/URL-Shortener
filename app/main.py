@@ -4,7 +4,7 @@ import uvicorn
 import asyncio
 
 from src.schemas import UrlSchema
-from app.src.url import create_url
+from src.url import create_url
 from db import crud 
 
 app = FastAPI(

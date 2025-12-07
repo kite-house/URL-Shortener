@@ -34,7 +34,7 @@ async def write_url(abbreviated_link: str, address: str) -> None:
 
         await session.commit()
 
-async def get_url(abbreviated_link: str) -> None:
+async def get_url(abbreviated_link: str) -> str:
     async with async_session() as session:
         url = await session.scalar(select(Url).where(Url.abbreviated_link == abbreviated_link))
 
@@ -42,8 +42,13 @@ async def get_url(abbreviated_link: str) -> None:
             raise ValueError('Not Found')
         
         return url.address
-    
 
+async def get_url_reverse(address: str) -> str:
+    async with async_session() as session:
+        url = await session.scalar(select(Url).where(Url.address == address))
+    
+        return url.abbreviated_link
+    
 async def translation_count(abbreviated_link: str) -> None:
     async with async_session() as session:
         await session.execute(

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import RedirectResponse
+from sqlalchemy.exc import IntegrityError
 import uvicorn
 import asyncio
 
@@ -16,10 +17,14 @@ app = FastAPI(
 @app.post('/cutback')
 async def cutback(url: UrlSchema):
     new_url = await create_url()
-    await crud.write_url(
-        abbreviated_link = new_url,
-        address = url.url
-    )
+    try:
+        await crud.write_url(
+            abbreviated_link = new_url,
+            address = url.url
+        )
+    except IntegrityError:
+        new_url = await crud.get_url_reverse(url.url)
+        raise HTTPException(status_code=208, detail = f'This URL is already registered in the service, using the link: {new_url}')
 
     return {'url' : new_url}
 

@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 import uvicorn
 import asyncio
 
@@ -21,6 +22,16 @@ async def cutback(url: UrlSchema):
     )
 
     return {'url' : new_url}
+
+@app.get('/{url}')
+async def redirect(url: str):
+    try:
+        address = await crud.get_url(url)
+    except ValueError:
+        raise HTTPException(status_code=404, detail='Link not found! Create link!')
+    
+    await crud.translation_count(url)
+    return RedirectResponse(address)
 
 
 if __name__ == "__main__":

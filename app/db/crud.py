@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, update
 from datetime import datetime
 import os
 
@@ -34,4 +34,21 @@ async def write_url(abbreviated_link: str, address: str) -> None:
 
         await session.commit()
 
+async def get_url(abbreviated_link: str) -> None:
+    async with async_session() as session:
+        url = await session.scalar(select(Url).where(Url.abbreviated_link == abbreviated_link))
 
+        if not url:
+            raise ValueError('Not Found')
+        
+        return url.address
+    
+
+async def translation_count(abbreviated_link: str) -> None:
+    async with async_session() as session:
+        await session.execute(
+            update(Url)
+            .where(Url.abbreviated_link == abbreviated_link)
+            .values(number_clicks = Url.number_clicks + 1)
+        )
+        await session.commit()

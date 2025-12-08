@@ -55,3 +55,8 @@ async def increase_count_clicks(slug: str) -> None:
         )
         
         await session.commit()
+
+async def get_urls():
+    async with async_session() as session:
+        urls = await session.scalars(select(Url).order_by(Url.count_clicks))
+        return urls.all()

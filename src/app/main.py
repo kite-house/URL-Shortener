@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 
-from api.shortening import router as shortening_router
+from api.shortener import router as shortener_router
 from lifespan import lifespan
 
 app = FastAPI(
@@ -10,7 +10,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.include_router(shortening_router)
+app.include_router(shortener_router)
 
 if __name__ == "__main__":
     uvicorn.run('main:app', reload=True)

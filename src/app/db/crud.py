@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy import select, update
+from sqlalchemy import select, update, exc
 from datetime import datetime
 import os
 
@@ -22,47 +22,36 @@ async def async_main() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-async def write_url(abbreviated_link: str, address: str) -> None:
+async def write_url(slug: str, long_url: str) -> None:
     async with async_session() as session:
         session.add(
             Url(
-                abbreviated_link = abbreviated_link,
-                address = address,
+                slug = slug,
+                long_url = long_url,
                 date_created = datetime.now().date()
             )
         )
 
         await session.commit()
 
-async def get_url(abbreviated_link: str) -> str:
+async def get_url(*, slug: str = None, long_url: str = None) -> Url:
     async with async_session() as session:
-        url = await session.scalar(select(Url).where(Url.abbreviated_link == abbreviated_link))
+        url = await session.scalar(
+            select(Url)
+            .where(Url.slug == slug if slug else Url.long_url == long_url)
+        )
 
-        if not url:
-            raise ValueError('Not Found')
-        
-        return url.address
-
-async def get_info_url(abbreviated_link: str) -> str:
-    async with async_session() as session:
-        url = await session.scalar(select(Url).where(Url.abbreviated_link == abbreviated_link))
-
-        if not url:
-            raise ValueError('Not Found')
+        if not url: 
+            raise exc.NoResultFound
         
         return url
 
-async def get_url_reverse(address: str) -> str:
-    async with async_session() as session:
-        url = await session.scalar(select(Url).where(Url.address == address))
-    
-        return url.abbreviated_link
-    
-async def translation_count(abbreviated_link: str) -> None:
+async def increase_count_clicks(slug: str) -> None:
     async with async_session() as session:
         await session.execute(
             update(Url)
-            .where(Url.abbreviated_link == abbreviated_link)
-            .values(number_clicks = Url.number_clicks + 1)
+            .where(Url.slug == slug)
+            .values(number_clicks = Url.count_clicks + 1)
         )
+        
         await session.commit()

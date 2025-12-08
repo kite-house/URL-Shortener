@@ -10,7 +10,7 @@ class Url(Base):
     __tablename__ = 'urls'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    abbreviated_link: Mapped[str] = mapped_column(String(50), unique=True)
-    address: Mapped[str] = mapped_column(String(300), unique=True)
-    number_clicks: Mapped[int] = mapped_column(default=0)
+    slug: Mapped[str] = mapped_column(String(50), unique=True)
+    long_url: Mapped[str] = mapped_column(String(2083), unique=True)
+    count_clicks: Mapped[int] = mapped_column(default=0)
     date_created: Mapped[datetime]

@@ -1,8 +1,15 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 import uvicorn
 
 from api.shortener import router as shortener_router
-from lifespan import lifespan
+from db.crud import async_main
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await async_main()
+    
+    yield
 
 app = FastAPI(
     title = 'Shortening-URLs',

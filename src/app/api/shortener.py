@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from fastapi.responses import RedirectResponse
 from typing import Annotated
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from pydantic import AfterValidator
 
 from schemas.urls import UrlSchema
 from services.generate_short_url import create_url, UrlLength
@@ -9,19 +10,41 @@ from db import crud
 
 router = APIRouter()
 
+
+def checkCustomSlugValid(custom_slug: str):
+    for char in custom_slug:
+        if char in ['/']:
+            raise ValueError(f'It is forbidden to use "{char}"!')
+
+    for apiroute in router.routes:
+        if custom_slug in apiroute.path:
+            raise ValueError('This address is registered by the system!')
+
+
 @router.post('/cutback', tags = ['Сut Back 🛠️'])
-async def cutback(long_url: UrlSchema, length: Annotated[int | None, Query(ge=UrlLength.MIN_LENGTH, le=UrlLength.MAX_LENGTH)] = None) -> dict:
-    short_url = await create_url(length)
+async def cutback(
+    long_url: UrlSchema, 
+    length: Annotated[int | None, Query(ge=UrlLength.MIN_LENGTH, le=UrlLength.MAX_LENGTH)] = None, 
+    custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None
+) -> dict:
+    if not custom_slug:
+        slug = await create_url(length)
+
+    else:
+        slug = custom_slug
     try:
         await crud.write_url(
-            slug = short_url,
+            slug = slug,
             long_url = long_url.url
         )
     except IntegrityError:
-        short_url = await crud.get_url(long_url = long_url.url)
+        try:
+            short_url = await crud.get_url(long_url = long_url.url)
+        except NoResultFound:
+            raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = f'This slug has already been registered!')
         raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = f'This URL is already registered in the service, using the link: {short_url.slug}')
 
-    return {'short_url' : short_url, "long_url": long_url.url}
+    return {'slug' : slug, "long_url": long_url.url}
 
 @router.get('/info/{url}', tags = ['Information 📑'])
 async def info(url: str) -> dict:

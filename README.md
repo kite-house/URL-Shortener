@@ -33,7 +33,7 @@
 1. **Клонируйте репозиторий**:
 
    ```bash
-   git clone https://github.com/Diviniuses/fastapi-url-shortener](https://github.com/kite-house/Shortening-URLs.git
+   git clone https://github.com/kite-house/Shortening-URLs.git
    cd fastapi-url-shortener
    ```
 2. **Пропишите файл .env**:

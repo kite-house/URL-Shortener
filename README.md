@@ -1,4 +1,4 @@
-## 🚀 FastAPI URL Shortener<img width="576" height="171" alt="image" src="https://github.com/user-attachments/assets/21f814bc-0326-4bd5-a9a4-d2519bed4689" />
+## 🚀 FastAPI URL Shortener
 
 
 Высокопроизводительный сервис для сокращения ссылок на **Python 3.11 + FastAPI**.  
@@ -34,7 +34,7 @@
 1. **Клонируйте репозиторий**:
 
    ```bash
-   git clone https://github.com/kite-house/Shortening-URLs.git
+   git clone https://github.com/kite-house/URL-Shortener.git
    cd fastapi-url-shortener
    ```
 2. **Пропишите файл .env**:

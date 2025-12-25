@@ -13,7 +13,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title = 'Shortening-URLs',
+    title = 'URL-Shortener',
     description= 'A service for shortening links and redirecting users from a shortened link to an external address',
     lifespan=lifespan
 )

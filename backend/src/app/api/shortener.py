@@ -19,7 +19,7 @@ redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, d
 
 def checkCustomSlugValid(custom_slug: str):
     for char in custom_slug:
-        if char in ['/']:
+        if char in ['/', '?', '@', "#"]:
             raise ValueError(f'It is forbidden to use "{char}"!')
 
     for apiroute in router.routes:
@@ -28,13 +28,10 @@ def checkCustomSlugValid(custom_slug: str):
 
     return custom_slug
 
-@router.post('/cutback', tags = ['Сut Back 🛠️'])
-async def cutback(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    long_url: UrlSchema, 
-    length: Annotated[int | None, Query(ge=UrlLength.MIN_LENGTH, le=UrlLength.MAX_LENGTH)] = None, 
-    custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None
-) -> dict:
+@router.post('/shorten', tags = ['Shorten 🛠️'])
+async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_url: UrlSchema, 
+                  length: Annotated[int | None, Query(ge=UrlLength.MIN_LENGTH, le=UrlLength.MAX_LENGTH)] = None,  
+                  custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None) -> dict:
     if not custom_slug:
         slug = await create_url(session, length)
 
@@ -66,21 +63,21 @@ async def cutback(
     if redis_client:
         redis_client.set(slug, str(long_url.url))
 
-    return {"message": "Успешно!", "body" : {"slug" : slug, "long_url": long_url.url}}
+    return {"message": "Успешно!" ,"body" : {"slug" : slug, "long_url": long_url.url}}
 
 @router.get('/info/{url}', tags = ['Information 📑'])
 async def info(session: Annotated[AsyncSession, Depends(get_session)], url: str) -> dict:
     try:
         url = await crud.get_url(slug = url, session = session)
     except NoResultFound:
-        raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Link not found!')
+        raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = {"message" : "Не удалось найти!"})
     
-    return {
+    return {"message": "Успешно найден!", "body" : {
         'slug' : url.slug,
         'long_url' : url.long_url,
         'count_clicks' : url.count_clicks,
         'date_created' : url.date_created
-    }
+    }}
 
 @router.get('/top', tags = ['Information 📑'])
 async def top(session: Annotated[AsyncSession, Depends(get_session)], quantity: Annotated[int, Query(ge=1)] = 10) -> list[dict]:

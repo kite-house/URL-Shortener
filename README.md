@@ -2,7 +2,7 @@
   <h1>🔗 URL-Shortener</h1>
   <p><strong>Высокопроизводительный сервис для сокращения ссылок на FastAPI</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/Python-3.11-blue?style=flat-square&logo=python" alt="Python 3.11">
+    <img src="https://img.shields.io/badge/Python-3.12-blue?style=flat-square&logo=python" alt="Python 3.12">
     <img src="https://img.shields.io/badge/FastAPI-0.115.0-009688?style=flat-square&logo=fastapi" alt="FastAPI">
     <img src="https://img.shields.io/badge/PostgreSQL-14-336791?style=flat-square&logo=postgresql" alt="PostgreSQL">
     <img src="https://img.shields.io/badge/Redis-7.2.4-DC382D?style=flat-square&logo=redis" alt="Redis">

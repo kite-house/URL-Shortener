@@ -13,7 +13,7 @@ from src.app.dependencies import get_session
 from src.app.exceptions import URLAlreadyRegistered
 from src.app.db.config import settings
 
-router = APIRouter()
+router = APIRouter(prefix = '/api')
 redis_client = redis.Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
 
 
@@ -51,14 +51,22 @@ async def cutback(
         try:
             short_url = await crud.get_url(long_url = str(long_url.url), session = session)
         except NoResultFound:
-            raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = f'This slug has already been registered!')
+            raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = {
+                "message" : "Данная короткая ссылка уже зарегистрирована!",
+                "slug": short_url.slug,
+                "long_url" : str(long_url.url) 
+            })
         
-        raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = f'This URL is already registered in the service, using the link: {short_url.slug}')
+        raise HTTPException(status_code = status.HTTP_208_ALREADY_REPORTED, detail = {
+            "message" : "Данная длинная ссылка уже зарегистрирована!",
+            "slug": short_url.slug,
+            "long_url" : str(long_url.url) 
+        })
 
     if redis_client:
         redis_client.set(slug, str(long_url.url))
 
-    return {'slug' : slug, "long_url": long_url.url}
+    return {"message": "Успешно!", "body" : {"slug" : slug, "long_url": long_url.url}}
 
 @router.get('/info/{url}', tags = ['Information 📑'])
 async def info(session: Annotated[AsyncSession, Depends(get_session)], url: str) -> dict:

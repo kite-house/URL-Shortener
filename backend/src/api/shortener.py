@@ -46,11 +46,11 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
                 status_code = status.HTTP_208_ALREADY_REPORTED,
                 content = {
                     "success" : True,
-                    "created" : False,
                     "message" : "Короткая ссылка уже зарегистрирована в сервисе!",
                     "data" : {
                         "slug" : slug,
-                        "short_url" : f"{settings.BASE_URL}/api/{slug}"
+                        "short_url" : f"{settings.BASE_URL}/api/{slug}",
+                        "long_url" : long_url.url
                     }
 
                 }
@@ -60,11 +60,11 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
             status_code = status.HTTP_208_ALREADY_REPORTED,
             content = {
                 "success" : True,
-                "created" : False,
                 "message" : "Ссылка уже зарегистрирована в сервисе!",
                 "data" : {
                     "slug" : slug,
-                    "short_url" : f"{settings.BASE_URL}/api/{slug}"
+                    "short_url" : f"{settings.BASE_URL}/api/{slug}",
+                    "long_url" : long_url.url
                 }
 
             }
@@ -76,7 +76,6 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
         status_code = status.HTTP_201_CREATED,
         content = {
             "success" : True,
-            "created" : True,
             "message" : "Ссылка успешно создана!",
             "data" : {
                 "slug": slug,
@@ -98,6 +97,7 @@ async def info(session: Annotated[AsyncSession, Depends(get_session)], slug: str
                 "message" : "Не удалось найти!",
                 "data" : {
                     'slug' : slug,
+                    "short_url" : "-",
                     'long_url' : "-",
                     'count_clicks' : "-",
                     'date_created' : "-",
@@ -112,6 +112,7 @@ async def info(session: Annotated[AsyncSession, Depends(get_session)], slug: str
             "message" : "Успешно найден!",
             "data" : {
                 "slug" : url.slug,
+                "short_url" : f"{settings.BASE_URL}/api/{url.slug}",
                 "long_url" : url.long_url,
                 "count_clicks" : url.count_clicks,
                 "date_created" : datetime.strftime(url.date_created, "%d.%m.%Y")
@@ -126,7 +127,8 @@ async def top(session: Annotated[AsyncSession, Depends(get_session)], quantity: 
     results = [
         {
             "id": result.id,
-            "slug": result.slug,
+            "slug" : result.slug,
+            "short_url": f"{settings.BASE_URL}/api/{result.slug}",
             "long_url": result.long_url,
             "count_clicks": result.count_clicks,
             "date_created": datetime.strftime(result.date_created, "%d.%m.%Y"),

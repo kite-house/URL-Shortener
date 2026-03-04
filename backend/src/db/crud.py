@@ -22,7 +22,7 @@ async def write_url(slug: str, long_url: str, session: AsyncSession) -> None:
         raise URLAlreadyRegistered
 
 async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSession) -> Url:
-    """Получить обьект ссылки по слагу"""
+    """Получить обьект ссылки по слагу или по длинной ссылке"""
     url = await session.scalar(
         select(Url)
         .where(Url.slug == slug if slug else Url.long_url == long_url)

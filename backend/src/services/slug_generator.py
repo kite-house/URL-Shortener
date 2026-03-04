@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import random
 import string
 
-from src.app.db.crud import get_url
+from src.db.crud import get_url
 
 @dataclass
 class UrlLength:

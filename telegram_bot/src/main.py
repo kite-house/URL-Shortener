@@ -1,9 +1,8 @@
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher
 from handlers import router
-from aiogram.filters import Command
 
 from config import settings
 bot = Bot(token = settings.TELEGRAM_TOKEN)

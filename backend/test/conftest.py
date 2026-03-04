@@ -3,10 +3,10 @@ from typing import AsyncGenerator
 from httpx import AsyncClient, ASGITransport
 import pytest
 
-from src.app.main import app
-from src.app.db.db import settings
-from src.app.db.models import Base
-from src.app.dependencies import get_session
+from backend.src.main import app
+from src.db.db import settings
+from src.db.models import Base
+from src.api.dependencies import get_session
 
 engine = create_async_engine(url = settings.DB_URL)
 

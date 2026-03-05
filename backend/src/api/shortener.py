@@ -10,12 +10,10 @@ from datetime import datetime
 from src.schemas.urls import UrlSchema
 from src.services.slug_generator import create_url
 from src.db import crud 
-from src.api.dependencies import get_session, get_settings
+from src.api.dependencies import SessionDep, SettingsDep, RedisDep
 from src.core.exceptions import URLAlreadyRegistered
-from src.core.config import settings, Settings
 
 router = APIRouter(prefix = '/api')
-redis_client = Redis(host=settings.REDIS_HOST, port=settings.REDIS_PORT, decode_responses=True)
 
 
 def checkCustomSlugValid(custom_slug: str):
@@ -29,10 +27,23 @@ def checkCustomSlugValid(custom_slug: str):
 
     return custom_slug
 
+async def get_length_query(settings: SettingsDep, length: int | None = Query(None, description = "Длина генерируемого слага")) -> int | None:
+    if length is not None:
+        if length < settings.SLUG_MIN_LENGTH or length > settings.SLUG_MAX_LENGTH:
+            raise HTTPException(
+                status_code = status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail = f"Длина должна быть между {settings.SLUG_MIN_LENGTH} и {settings.SLUG_MAX_LENGTH}"
+            )
+    return length
+
 @router.post('/shorten', summary = "Сократить ссылку", tags = ['Shorten 🛠️'])
-async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_url: UrlSchema, 
-                  length: Annotated[int | None, Query(ge=settings.MIN_SLUG_LENGTH, le=settings.MAX_SLUG_LENGTH)] = None,  
-                  custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None) -> JSONResponse:
+async def shorten(session: SessionDep, 
+                  long_url: UrlSchema,
+                  settings: SettingsDep,
+                  redis: RedisDep,
+                  length: Annotated[int | None, Depends(get_length_query)] = None,  
+                  custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None                  
+) -> JSONResponse:
 
     slug = await create_url(session, length) if not custom_slug else custom_slug
 
@@ -70,12 +81,17 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
             }
         )
 
-    if redis_client: redis_client.set(slug, str(long_url.url))
-    
+    if redis:
+        try:
+            await redis.setex(slug, 86400, str(long_url.url))
+        except Exception as e:
+            pass
+
     return JSONResponse(
         status_code = status.HTTP_201_CREATED,
         content = {
             "success" : True,
+            "cached" : bool(redis and redis.client),
             "message" : "Ссылка успешно создана!",
             "data" : {
                 "slug": slug,
@@ -86,7 +102,7 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
     )
 
 @router.get('/info/{slug}', summary = "Получить информацию об короткой ссылке", tags = ['Information 📑'])
-async def info(session: Annotated[AsyncSession, Depends(get_session)], slug: str) -> JSONResponse:
+async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONResponse:
     try:
         url = await crud.get_url(slug = slug, session = session)
     except NoResultFound:
@@ -121,7 +137,7 @@ async def info(session: Annotated[AsyncSession, Depends(get_session)], slug: str
     )
 
 @router.get("/top", summary = "Получить топ ссылок" ,tags = ['Information 📑'])
-async def top(session: Annotated[AsyncSession, Depends(get_session)], quantity: Annotated[int, Query(ge=1)] = 10) -> JSONResponse:
+async def top(session: SessionDep, settings: SettingsDep, quantity: Annotated[int, Query(ge=1)] = 10) -> JSONResponse:
     results = await crud.get_urls(session)
 
     results = [
@@ -146,11 +162,11 @@ async def top(session: Annotated[AsyncSession, Depends(get_session)], quantity: 
     )
     
 @router.get('/{slug}', summary = "Перейти по ссылке" ,tags = ['Redirect 🔗'])
-async def redirect(session: Annotated[AsyncSession, Depends(get_session)], slug: str) -> RedirectResponse:
+async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectResponse:
     short_url = None
 
-    if redis_client:
-        short_url = redis_client.get(slug)
+    if redis:
+        short_url = await redis.get(slug)
 
     if not short_url:
         try:

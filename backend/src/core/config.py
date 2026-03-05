@@ -15,8 +15,8 @@ class Settings(BaseSettings):
 
     BASE_URL: str = "http://127.0.0.1:8000"
 
-    MIN_SLUG_LENGTH: int = 3
-    MAX_SLUG_LENGTH: int = 10
+    SLUG_MIN_LENGTH: int = 3
+    SLUG_MAX_LENGTH: int = 10
 
     model_config = SettingsConfigDict(
         env_file = ".env"
@@ -32,6 +32,6 @@ class Settings(BaseSettings):
     
     @property
     def RANDOM_SLUG_LENGTH(self):
-        return random.randint(self.MIN_SLUG_LENGTH, self.MAX_SLUG_LENGTH)
+        return random.randint(self.SLUG_MIN_LENGTH, self.SLUG_MAX_LENGTH)
     
 settings = Settings()

@@ -16,7 +16,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title = 'URL-Shortener',
-    summary= "Сервис для сокращения ссылок",
     description = 'Сервис для сокращения ссылок и перенаправления пользователей с сокращенной ссылки на внешний адрес',
     version = "2.0.3",
     lifespan=lifespan

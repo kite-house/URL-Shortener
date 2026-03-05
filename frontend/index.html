@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL-Shortener | Сервис сокращения ссылок</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-link"></i>
+                <span>URL Shortener</span>
+            </div>
+            <div class="theme-toggle">
+                <i class="fas fa-moon"></i>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Левая колонка - форма -->
+            <div class="left-column">
+                <div class="card form-card">
+                    <div class="form-header">
+                        <h1 class="title">Сократите длинную ссылку</h1>
+                        <!-- Кнопка настроек в заголовке -->
+                        <button type="button" id="toggleAdvancedBtn" class="settings-icon-btn" title="Дополнительные настройки">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    
+                    <p class="subtitle">Вставьте длинную ссылку и получите короткую за секунду</p>
+                    
+                    <form id="shortenForm">
+                        <div class="input-group">
+                            <input 
+                                type="url" 
+                                id="urlInput" 
+                                placeholder="https://example.com/very/long/url/with/many/parameters"
+                                required
+                            >
+                            <button type="submit" id="shortenBtn">
+                                <span class="btn-text">Сократить</span>
+                                <span class="btn-loader" style="display: none;">
+                                    <i class="fas fa-circle-notch fa-spin"></i>
+                                </span>
+                            </button>
+                        </div>
+
+                        <!-- Дополнительные настройки slug (скрыты по умолчанию) -->
+                        <div class="advanced-settings" id="advancedSettings" style="display: none;">
+                            <div class="slug-settings">
+                                <div class="slug-option">
+                                    <label for="customSlug">
+                                        <i class="fas fa-pencil-alt"></i> Свой вариант ссылки
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        id="customSlug" 
+                                        placeholder="например: my-link"
+                                        minlength="3"
+                                        pattern="[a-zA-Z0-9_-]+"
+                                        title="Только латинские буквы, цифры, дефис и подчеркивание"
+                                    >
+                                    <small class="slug-hint">Минимум 3 символа, только латинские буквы, цифры, дефис и подчеркивание</small>
+                                </div>
+
+                                <div class="slug-option">
+                                    <label for="slugLength">
+                                        <i class="fas fa-ruler"></i> Длина автоматической ссылки
+                                    </label>
+                                    <div class="length-control">
+                                        <input 
+                                            type="range" 
+                                            id="slugLength" 
+                                            min="3" 
+                                            max="10" 
+                                            value="6"
+                                            class="length-slider"
+                                        >
+                                        <span class="length-value" id="lengthValue">6</span>
+                                    </div>
+                                    <small class="slug-hint">От 3 до 10 символов</small>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Результат -->
+                    <div class="result-card" id="resultCard" style="display: none;">
+                        <div class="result-header">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Готово! Ваша короткая ссылка:</span>
+                        </div>
+                        <div class="result-content">
+                            <div class="short-url-container">
+                                <input type="text" id="shortUrl" readonly value="">
+                                <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="original-url" id="originalUrl">
+                                https://example.com/very/long/urls
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Статистика по ссылке (появляется после создания) -->
+                    <div class="stats-mini" id="statsMini" style="display: none;">
+                        <div class="stat-item">
+                            <i class="fas fa-eye"></i>
+                            <span class="stat-label">Переходов:</span>
+                            <span class="stat-value" id="clickCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-calendar"></i>
+                            <span class="stat-label">Создана:</span>
+                            <span class="stat-value" id="createdDate">сегодня</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка - топ ссылок -->
+            <div class="right-column">
+                <div class="card top-card">
+                    <div class="card-header">
+                        <h2><i class="fas fa-chart-line"></i> Топ 10 ссылок</h2>
+                        <span class="update-badge" id="updateBadge">
+                            <i class="fas fa-sync-alt"></i> Обновлено
+                        </span>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="top-table" id="topLinksTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Короткая ссылка</th>
+                                    <th>Исходная ссылка</th>
+                                    <th>Переходы</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <!-- Данные будут загружаться через JS -->
+                                <tr class="loading-row">
+                                    <td colspan="4" class="loading-message">
+                                        <i class="fas fa-spinner fa-spin"></i> Загрузка...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="card-footer">
+                        <span class="total-clicks" id="totalClicks">
+                            <i class="fas fa-chart-bar"></i> Всего переходов: <span id="totalClicksValue">0</span>
+                        </span>
+                        <button class="refresh-btn" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Обновить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>© 2026 URL Shortener. Все права защищены.</p>
+            <div class="footer-links">
+                <a href="https://github.com/kite-house/URL-Shortener"><i class="fab fa-github"></i></a>
+            </div>
+        </footer>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Сначала подключаем API, потом UI -->
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>

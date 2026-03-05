@@ -50,7 +50,7 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
                     "data" : {
                         "slug" : slug,
                         "short_url" : f"{settings.BASE_URL}/api/{slug}",
-                        "long_url" : long_url.url
+                        "long_url" : str(long_url.url)
                     }
 
                 }
@@ -64,7 +64,7 @@ async def shorten(session: Annotated[AsyncSession, Depends(get_session)], long_u
                 "data" : {
                     "slug" : slug,
                     "short_url" : f"{settings.BASE_URL}/api/{slug}",
-                    "long_url" : long_url.url
+                    "long_url" : str(long_url.url)
                 }
 
             }

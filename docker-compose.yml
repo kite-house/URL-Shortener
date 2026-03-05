@@ -1,4 +1,18 @@
 services:
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: always
+    ports:
+      - "80:80" 
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html
+      - ./frontend/assets:/usr/share/nginx/html/assets
+      - ./frontend/css:/usr/share/nginx/html/css
+      - ./frontend/js:/usr/share/nginx/html/js
+
   backend:
     build: ./backend
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
@@ -23,7 +37,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: ${DB_NAME}  
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     healthcheck:
@@ -32,9 +46,10 @@ services:
       timeout: 5s     
       retries: 5  
       start_period: 10s 
+  
   cache:
     image: redis:7-alpine
     restart: always
-    
+
 volumes:
   postgres_data:

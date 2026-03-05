@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from src.api.shortener import router as shortener_router
+from src.api.configuration import router as configuration_router
 from src.db.db import engine
 from src.db.models import Base
 
@@ -30,3 +31,4 @@ app.add_middleware(
 )
 
 app.include_router(shortener_router)
+app.include_router(configuration_router)

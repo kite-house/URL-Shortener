@@ -1,19 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import NoResultFound
-from dataclasses import dataclass
 import random
 import string
 
 from src.db.crud import get_url
+from src.core.config import settings
 
-@dataclass
-class UrlLength:
-    MAX_LENGTH: int = 9
-    MIN_LENGTH: int = 5
-
-    @classmethod
-    def get(cls) -> int:
-        return random.randint(cls.MIN_LENGTH, cls.MAX_LENGTH)
 
 def ValidOutputUrl(func):
     async def wrapper(*args, **kwargs):
@@ -27,8 +19,7 @@ def ValidOutputUrl(func):
 
 
 @ValidOutputUrl
-async def create_url(session: AsyncSession, length: int = None) -> str: # Url
-    if not length:
-        length = UrlLength.get()
+async def create_url(session: AsyncSession, length: int = None) -> str: 
+    if not length: length = settings.RANDOM_SLUG_LENGTH
 
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))

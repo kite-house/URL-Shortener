@@ -3,7 +3,6 @@ const UI = (function() {
     // Состояние приложения
     const state = {
         currentSlug: null,
-        topLinks: [],
         isLoading: false,
         advancedOpen: false
     };
@@ -24,12 +23,8 @@ const UI = (function() {
         elements.originalUrl = document.getElementById('originalUrl');
         elements.clickCount = document.getElementById('clickCount');
         elements.createdDate = document.getElementById('createdDate');
-        elements.tableBody = document.getElementById('tableBody');
-        elements.totalClicksValue = document.getElementById('totalClicksValue');
-        elements.refreshBtn = document.getElementById('refreshBtn');
         elements.themeToggle = document.querySelector('.theme-toggle');
         elements.toastContainer = document.getElementById('toastContainer');
-        elements.updateBadge = document.getElementById('updateBadge');
         
         // Новые элементы - с проверкой существования
         elements.customSlug = document.getElementById('customSlug');
@@ -74,15 +69,11 @@ const UI = (function() {
         initElements();
         initTheme();
         setupEventListeners();
-        loadTopLinks();
         
         // Инициализируем состояние полей
         if (elements.customSlug) {
             toggleFieldsState();
         }
-        
-        // Обновлять топ каждые 30 секунд
-        setInterval(loadTopLinks, 30000);
     }
 
     // Настройка обработчиков событий
@@ -92,11 +83,6 @@ const UI = (function() {
         if (elements.form) {
             elements.form.addEventListener('submit', handleFormSubmit);
             console.log('Form listener added');
-        }
-        
-        if (elements.refreshBtn) {
-            elements.refreshBtn.addEventListener('click', loadTopLinks);
-            console.log('Refresh listener added');
         }
         
         if (elements.themeToggle) {
@@ -308,7 +294,6 @@ const UI = (function() {
         state.currentSlug = responseData.slug;
         
         loadLinkStats(responseData.slug);
-        loadTopLinks();
         showToast(message, 'success');
         
         elements.urlInput.value = '';
@@ -345,85 +330,6 @@ const UI = (function() {
         } catch (error) {
             console.error('Error loading stats:', error);
         }
-    }
-
-    // Загрузка топа ссылок
-    async function loadTopLinks() {
-        elements.tableBody.innerHTML = `
-            <tr class="loading-row">
-                <td colspan="4" class="loading-message">
-                    <i class="fas fa-spinner fa-spin"></i> Загрузка...
-                </td>
-            </tr>
-        `;
-        
-        try {
-            const result = await API.getTopLinks(10);
-            
-            if (result.success) {
-                renderTopLinks(result.data.data);
-            } else {
-                throw new Error(result.data.message || 'Ошибка загрузки');
-            }
-            
-            updateTimestamp();
-            
-        } catch (error) {
-            console.error('Error loading top links:', error);
-            elements.tableBody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="loading-message" style="color: var(--danger-color);">
-                        <i class="fas fa-exclamation-circle"></i> Ошибка загрузки
-                    </td>
-                </tr>
-            `;
-        }
-    }
-
-    // Рендер таблицы топ ссылок
-    function renderTopLinks(links) {
-        if (!links || links.length === 0) {
-            elements.tableBody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="loading-message">
-                        <i class="fas fa-info-circle"></i> Пока нет ссылок
-                    </td>
-                </tr>
-            `;
-            return;
-        }
-        
-        let html = '';
-        let totalClicks = 0;
-        
-        links.forEach((link, index) => {
-            totalClicks += link.count_clicks || 0;
-            
-            const shortDisplay = link.short_url?.replace(/^https?:\/\//, '').substring(0, 25) + '...' || 'N/A';
-            const originalDisplay = link.long_url?.substring(0, 30) + '...' || 'N/A';
-            
-            html += `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td title="${link.short_url || ''}">
-                        <a href="${link.short_url}" target="_blank" style="color: var(--accent-color); text-decoration: none;">
-                            ${shortDisplay}
-                        </a>
-                    </td>
-                    <td title="${link.long_url || ''}">${originalDisplay}</td>
-                    <td><span class="click-badge">${link.count_clicks || 0}</span></td>
-                </tr>
-            `;
-        });
-        
-        elements.tableBody.innerHTML = html;
-        elements.totalClicksValue.textContent = totalClicks;
-    }
-
-    // Обновление временной метки
-    function updateTimestamp() {
-        const now = new Date();
-        elements.updateBadge.innerHTML = `<i class="fas fa-sync-alt"></i> ${formatTime(now)}`;
     }
 
     // Копирование в буфер обмена
@@ -513,16 +419,9 @@ const UI = (function() {
         }
     }
 
-    // Вспомогательные функции
-    function formatTime(date) {
-        const options = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-        return date.toLocaleTimeString('ru-RU', options);
-    }
-
     // Публичное API UI модуля
     return {
         init,
-        loadTopLinks,
         showToast
     };
 })();

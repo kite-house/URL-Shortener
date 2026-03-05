@@ -1,0 +1,41 @@
+services:
+  test_db:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_DB: test_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  test_cache:
+    image: redis:7-alpine
+
+  test_runner:
+    build: ./backend
+    command: pytest tests/ -v
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env.test 
+    depends_on:
+      test_db:
+        condition: service_healthy
+      test_cache:
+        condition: service_started
+
+
+
+# Команда для запуска тестов
+# docker-compose -f docker-compose.test.yml up --abort-on-container-exit test_runner 
+
+
+# Полная пересборка с запуском
+#>> docker-compose -f docker-compose.test.yml down -v
+#>> docker-compose -f docker-compose.test.yml build --no-cache
+#>> docker-compose -f docker-compose.test.yml up --abort-on-container-exit test_runner

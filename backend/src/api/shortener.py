@@ -60,7 +60,7 @@ async def shorten(session: SessionDep,
                     "message" : "Короткая ссылка уже зарегистрирована в сервисе!",
                     "data" : {
                         "slug" : slug,
-                        "short_url" : f"{settings.BASE_URL}/api/{slug}",
+                        "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
                         "long_url" : str(long_url.url)
                     }
 
@@ -74,7 +74,7 @@ async def shorten(session: SessionDep,
                 "message" : "Ссылка уже зарегистрирована в сервисе!",
                 "data" : {
                     "slug" : slug,
-                    "short_url" : f"{settings.BASE_URL}/api/{slug}",
+                    "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
                     "long_url" : str(long_url.url)
                 }
 
@@ -95,7 +95,7 @@ async def shorten(session: SessionDep,
             "message" : "Ссылка успешно создана!",
             "data" : {
                 "slug": slug,
-                "short_url" : f"{settings.BASE_URL}/api/{slug}",
+                "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
                 "long_url" : str(long_url.url)
             }
         }
@@ -128,7 +128,7 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
             "message" : "Успешно найден!",
             "data" : {
                 "slug" : url.slug,
-                "short_url" : f"{settings.BASE_URL}/api/{url.slug}",
+                "short_url" : f"{settings.API_BASE_URL}/api/{url.slug}",
                 "long_url" : url.long_url,
                 "count_clicks" : url.count_clicks,
                 "date_created" : datetime.strftime(url.date_created, "%d.%m.%Y")
@@ -144,7 +144,7 @@ async def top(session: SessionDep, settings: SettingsDep, quantity: Annotated[in
         {
             "id": result.id,
             "slug" : result.slug,
-            "short_url": f"{settings.BASE_URL}/api/{result.slug}",
+            "short_url": f"{settings.API_BASE_URL}/api/{result.slug}",
             "long_url": result.long_url,
             "count_clicks": result.count_clicks,
             "date_created": datetime.strftime(result.date_created, "%d.%m.%Y"),

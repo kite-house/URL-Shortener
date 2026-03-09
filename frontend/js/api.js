@@ -43,7 +43,6 @@ const API = (function() {
                 const lengthNum = parseInt(length);
                 if (!isNaN(lengthNum) && lengthNum >= 3 && lengthNum <= 10) {
                     params.append('length', lengthNum);
-                    console.log('✅ Добавлен параметр length:', lengthNum);
                 }
             }
             
@@ -53,18 +52,12 @@ const API = (function() {
                 // Проверяем валидность custom_slug
                 if (/^[a-zA-Z0-9_-]{3,}$/.test(slug)) {
                     params.append('custom_slug', slug);
-                    console.log('✅ Добавлен параметр custom_slug:', slug);
-                } else {
-                    console.warn('❌ Некорректный custom_slug:', slug);
                 }
             }
             
             // Добавляем параметры к URL если они есть
             if (params.toString()) {
                 urlString += `?${params.toString()}`;
-                console.log('📤 Полный URL запроса:', urlString);
-            } else {
-                console.log('📤 Запрос без параметров:', urlString);
             }
             
             const response = await fetch(urlString, {
@@ -75,15 +68,11 @@ const API = (function() {
                 body: JSON.stringify({url: url})
             });
             
-            console.log('📥 Статус ответа:', response.status);
-            console.log('🔗 Полный URL:', response.url);
-            
             const result = await handleResponse(response);
-            console.log('📥 Данные ответа:', result);
             
             return result;
         } catch (error) {
-            console.error('❌ API Error (shortenUrl):', error);
+            console.error('API Error:', error);
             throw error;
         }
     }
@@ -94,7 +83,7 @@ const API = (function() {
             const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.info}/${slug}`);
             return await handleResponse(response);
         } catch (error) {
-            console.error('API Error (getLinkStats):', error);
+            console.error('API Error:', error);
             throw error;
         }
     }
@@ -105,20 +94,19 @@ const API = (function() {
             const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.top}?quantity=${quantity}`);
             return await handleResponse(response);
         } catch (error) {
-            console.error('API Error (getTopLinks):', error);
+            console.error('API Error:', error);
             throw error;
         }
     }
 
-    // НОВЫЙ МЕТОД: Получение допустимой длины слага
+    // Получение допустимой длины слага
     async function getSlugLengthConfig() {
         try {
             const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.config.slugLength}`);
             const result = await handleResponse(response);
-            console.log('📥 Получена конфигурация длины слага:', result);
             return result;
         } catch (error) {
-            console.error('API Error (getSlugLengthConfig):', error);
+            console.error('API Error:', error);
             // Возвращаем значения по умолчанию в случае ошибки
             return {
                 success: false,
@@ -135,6 +123,6 @@ const API = (function() {
         shortenUrl,
         getLinkStats,
         getTopLinks,
-        getSlugLengthConfig  // Добавляем новый метод
+        getSlugLengthConfig
     };
 })();

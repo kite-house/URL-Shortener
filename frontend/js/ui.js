@@ -17,8 +17,6 @@ const UI = (function() {
 
     // Функция для инициализации элементов
     function initElements() {
-        console.log('Initializing DOM elements');
-        
         elements.form = document.getElementById('shortenForm');
         elements.urlInput = document.getElementById('urlInput');
         elements.shortenBtn = document.getElementById('shortenBtn');
@@ -31,27 +29,17 @@ const UI = (function() {
         elements.themeToggle = document.querySelector('.theme-toggle');
         elements.toastContainer = document.getElementById('toastContainer');
         
-        // Новые элементы - с проверкой существования
+        // Элементы дополнительных настроек
         elements.customSlug = document.getElementById('customSlug');
         elements.slugLength = document.getElementById('slugLength');
         elements.lengthValue = document.getElementById('lengthValue');
         elements.toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn');
         elements.advancedSettings = document.getElementById('advancedSettings');
         elements.sliderMarkers = document.querySelector('.slider-markers');
-        
-        // Проверяем, что все элементы найдены
-        console.log('Toggle button found:', !!elements.toggleAdvancedBtn);
-        console.log('Advanced settings found:', !!elements.advancedSettings);
-        
-        if (!elements.toggleAdvancedBtn) {
-            console.error('Toggle button not found! Check ID in HTML: toggleAdvancedBtn');
-        }
     }
 
-    // НОВЫЙ МЕТОД: Загрузка конфигурации длины слага
+    // Загрузка конфигурации длины слага
     async function loadSlugLengthConfig() {
-        console.log('📤 Загрузка конфигурации длины слага...');
-        
         try {
             const result = await API.getSlugLengthConfig();
             
@@ -62,19 +50,16 @@ const UI = (function() {
                     default: Math.floor((result.data.slug_min_length + result.data.slug_max_length) / 2) || 6
                 };
                 
-                console.log('✅ Конфигурация загружена:', state.slugLengthConfig);
-                
                 // Обновляем слайдер с новыми значениями
                 updateSliderConfig();
             }
         } catch (error) {
-            console.error('❌ Ошибка загрузки конфигурации:', error);
             // Используем значения по умолчанию
             showToast('Используются стандартные настройки длины', 'info');
         }
     }
 
-    // НОВЫЙ МЕТОД: Обновление конфигурации слайдера
+    // Обновление конфигурации слайдера
     function updateSliderConfig() {
         if (!elements.slugLength) return;
         
@@ -96,8 +81,6 @@ const UI = (function() {
                 <span>${max}</span>
             `;
         }
-        
-        console.log(`✅ Слайдер обновлен: min=${min}, max=${max}, default=${defaultValue}`);
     }
 
     // Функция для управления состоянием полей
@@ -111,19 +94,16 @@ const UI = (function() {
             elements.slugLength.disabled = true;
             elements.slugLength.classList.add('disabled');
             elements.lengthValue.classList.add('disabled');
-            console.log('🔒 Slider disabled - custom slug active');
         } else {
             // Если custom_slug пустой, разблокируем слайдер
             elements.slugLength.disabled = false;
             elements.slugLength.classList.remove('disabled');
             elements.lengthValue.classList.remove('disabled');
-            console.log('🔓 Slider enabled - no custom slug');
         }
     }
 
     // Инициализация
     async function init() {
-        console.log('UI initialized');
         initElements();
         initTheme();
         
@@ -140,68 +120,44 @@ const UI = (function() {
 
     // Настройка обработчиков событий
     function setupEventListeners() {
-        console.log('Setting up event listeners');
-        
         if (elements.form) {
             elements.form.addEventListener('submit', handleFormSubmit);
-            console.log('Form listener added');
         }
         
         if (elements.themeToggle) {
             elements.themeToggle.addEventListener('click', toggleTheme);
-            console.log('Theme toggle listener added');
         }
         
         // Слушатель для слайдера длины
         if (elements.slugLength) {
             elements.slugLength.addEventListener('input', updateLengthDisplay);
-            console.log('Slider listener added');
         }
         
         // Валидация custom slug при вводе
         if (elements.customSlug) {
             elements.customSlug.addEventListener('input', validateCustomSlug);
-            console.log('Custom slug validation added');
         }
         
         // Кнопка открытия/закрытия доп. настроек
         if (elements.toggleAdvancedBtn) {
-            console.log('✅ Toggle button found, adding click listener');
-            
-            // Убираем все предыдущие обработчики
-            elements.toggleAdvancedBtn.removeEventListener('click', toggleAdvancedSettings);
-            
-            // Добавляем новый обработчик
             elements.toggleAdvancedBtn.addEventListener('click', function(event) {
                 event.preventDefault();
                 event.stopPropagation();
-                console.log('🔘 Toggle button clicked! Current state:', state.advancedOpen);
                 toggleAdvancedSettings();
             });
-            
-            console.log('✅ Click listener added to toggle button');
-        } else {
-            console.error('❌ Toggle button NOT found! Check HTML ID');
         }
     }
 
     // Открыть/закрыть дополнительные настройки
     function toggleAdvancedSettings() {
-        console.log('🔄 toggleAdvancedSettings called, current state:', state.advancedOpen);
-        
-        if (!elements.advancedSettings) {
-            console.error('❌ Advanced settings element not found!');
-            return;
-        }
+        if (!elements.advancedSettings) return;
         
         state.advancedOpen = !state.advancedOpen;
-        console.log('New state:', state.advancedOpen);
         
         if (state.advancedOpen) {
             elements.advancedSettings.style.display = 'block';
             elements.toggleAdvancedBtn.classList.add('active');
             elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(90deg)';
-            console.log('✅ Advanced settings opened');
             
             // При открытии проверяем состояние полей
             toggleFieldsState();
@@ -209,7 +165,6 @@ const UI = (function() {
             elements.advancedSettings.style.display = 'none';
             elements.toggleAdvancedBtn.classList.remove('active');
             elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(0deg)';
-            console.log('✅ Advanced settings closed');
             
             // Сбрасываем значения при закрытии
             if (elements.customSlug) {
@@ -279,28 +234,21 @@ const UI = (function() {
         // Если customSlug пустая строка, передаем null
         if (customSlug === '') {
             customSlug = null;
-            console.log('Custom slug is empty, using null');
         }
         
-        // ВАЖНО: Если указан custom_slug, не передаем length
+        // Если указан custom_slug, не передаем length
         if (customSlug) {
             length = null;
-            console.log('Custom slug provided, length will not be used');
         }
-        // Проверяем валидность length ТОЛЬКО если настройки открыты И нет custom_slug
+        // Проверяем валидность length если настройки открыты и нет custom_slug
         else if (useLength && length !== null) {
             const { min, max } = state.slugLengthConfig;
             length = parseInt(length);
             if (isNaN(length) || length < min || length > max) {
-                console.warn('Invalid length value, using default');
                 length = null;
-            } else {
-                console.log('Using length:', length);
             }
         } else {
-            // Если настройки закрыты или есть custom_slug, не передаем length
             length = null;
-            console.log('Length not used');
         }
         
         // Валидация кастомного slug если он указан
@@ -311,15 +259,7 @@ const UI = (function() {
                 showToast(`Некорректный формат кастомной ссылки (минимум ${min} символов)`, 'error');
                 return;
             }
-            console.log('✅ Using custom slug:', customSlug);
         }
-        
-        console.log('🚀 Отправка запроса с параметрами:', { 
-            url, 
-            customSlug: customSlug || 'не указан', 
-            length: length || 'не указан',
-            useLength: useLength
-        });
         
         setLoading(true);
         
@@ -338,7 +278,6 @@ const UI = (function() {
             
         } catch (error) {
             showToast(error.message, 'error');
-            console.error('❌ Error:', error);
         } finally {
             setLoading(false);
         }
@@ -346,8 +285,6 @@ const UI = (function() {
 
     // Обработка успешного ответа
     function handleSuccessResponse(responseData, originalUrl, message) {
-        console.log('Response data:', responseData);
-        
         let displayUrl = responseData.short_url;
         if (displayUrl.includes('localhost')) {
             displayUrl = displayUrl.replace('localhost', window.location.hostname);
@@ -395,7 +332,7 @@ const UI = (function() {
                 elements.statsMini.style.display = 'flex';
             }
         } catch (error) {
-            console.error('Error loading stats:', error);
+            // Ошибка загрузки статистики - просто не показываем
         }
     }
 
@@ -495,14 +432,5 @@ const UI = (function() {
 
 // Инициализация приложения после загрузки DOM
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('📄 DOM loaded, initializing UI');
     UI.init();
 });
-
-// Дополнительная проверка на случай, если DOM загрузился слишком быстро
-if (document.readyState === 'loading') {
-    console.log('Document still loading, waiting for DOMContentLoaded');
-} else {
-    console.log('Document already loaded, initializing UI now');
-    UI.init();
-}

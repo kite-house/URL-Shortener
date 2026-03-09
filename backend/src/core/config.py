@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+from functools import lru_cache
 import random
 
 class Settings(BaseSettings):
@@ -42,5 +43,8 @@ class Settings(BaseSettings):
     def RANDOM_SLUG_LENGTH(self):
         return random.randint(self.SLUG_MIN_LENGTH, self.SLUG_MAX_LENGTH)
     
+@lru_cache
+def get_settings() -> Settings:
+    settings = Settings()
 
-settings = Settings()
+settings = get_settings()

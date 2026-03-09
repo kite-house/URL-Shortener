@@ -4,7 +4,7 @@ services:
     container_name: frontend
     restart: always
     ports:
-      - "80:80" 
+      - "${FRONTED_PORT}:${FRONTED_PORT}" 
     depends_on:
       - backend
     volumes:
@@ -15,11 +15,11 @@ services:
 
   backend:
     build: ./backend
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn src.main:app --host ${BACKEND_HOST} --port ${BACKEND_PORT} --reload
     volumes:
       - ./backend/src:/src 
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
     env_file:
       - .env
     depends_on:

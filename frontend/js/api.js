@@ -7,7 +7,10 @@ const API = (function() {
         endpoints: {
             shorten: '/shorten',
             info: '/info',
-            top: "/top"
+            top: "/top",
+            config: {
+                slugLength: '/config/slug-length'
+            }
         }
     };
 
@@ -107,10 +110,31 @@ const API = (function() {
         }
     }
 
+    // НОВЫЙ МЕТОД: Получение допустимой длины слага
+    async function getSlugLengthConfig() {
+        try {
+            const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.config.slugLength}`);
+            const result = await handleResponse(response);
+            console.log('📥 Получена конфигурация длины слага:', result);
+            return result;
+        } catch (error) {
+            console.error('API Error (getSlugLengthConfig):', error);
+            // Возвращаем значения по умолчанию в случае ошибки
+            return {
+                success: false,
+                data: {
+                    slug_min_length: 3,
+                    slug_max_length: 10
+                }
+            };
+        }
+    }
+
     // Публичное API
     return {
         shortenUrl,
         getLinkStats,
-        getTopLinks
+        getTopLinks,
+        getSlugLengthConfig  // Добавляем новый метод
     };
 })();

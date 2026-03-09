@@ -2,17 +2,28 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from typing import Annotated
 
-from src.api.dependencies import get_settings
-from src.core.config import Settings
+from src.api.dependencies import SettingsDep
 
 router = APIRouter(prefix="/api/config", tags = ['Configuration ⚙️'])
 
 @router.get('/slug-length', summary = 'Получить допустимую длину для слага')
-async def get_slug_length(settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
+async def get_slug_length(settings: SettingsDep) -> JSONResponse:
     return JSONResponse(
         status_code = status.HTTP_200_OK,
         content = {
-            "min_slug_length": settings.MIN_SLUG_LENGTH,
-            "max_slug_length": settings.MAX_SLUG_LENGTH
+            "slug_min_length": settings.SLUG_MIN_LENGTH,
+            "slug_max_length": settings.SLUG_MAX_LENGTH
+        }
+    )
+
+@router.get("/frontend", summary = "Получить всю необходимую информацию о сервере")
+async def get_frontend_config(settings: SettingsDep) -> JSONResponse:
+    return JSONResponse(
+        status_code = status.HTTP_200_OK,
+        content = {
+            "app_name": settings.APP_NAME,
+            "version": settings.VERSION,
+            "api_base_url": settings.API_BASE_URL,
+            "mode": settings.MODE,
         }
     )

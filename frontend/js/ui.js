@@ -4,7 +4,12 @@ const UI = (function() {
     const state = {
         currentSlug: null,
         isLoading: false,
-        advancedOpen: false
+        advancedOpen: false,
+        slugLengthConfig: {
+            min: 3,
+            max: 10,
+            default: 6
+        }
     };
 
     // DOM элементы
@@ -32,6 +37,7 @@ const UI = (function() {
         elements.lengthValue = document.getElementById('lengthValue');
         elements.toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn');
         elements.advancedSettings = document.getElementById('advancedSettings');
+        elements.sliderMarkers = document.querySelector('.slider-markers');
         
         // Проверяем, что все элементы найдены
         console.log('Toggle button found:', !!elements.toggleAdvancedBtn);
@@ -40,6 +46,58 @@ const UI = (function() {
         if (!elements.toggleAdvancedBtn) {
             console.error('Toggle button not found! Check ID in HTML: toggleAdvancedBtn');
         }
+    }
+
+    // НОВЫЙ МЕТОД: Загрузка конфигурации длины слага
+    async function loadSlugLengthConfig() {
+        console.log('📤 Загрузка конфигурации длины слага...');
+        
+        try {
+            const result = await API.getSlugLengthConfig();
+            
+            if (result.data) {
+                state.slugLengthConfig = {
+                    min: result.data.slug_min_length || 3,
+                    max: result.data.slug_max_length || 10,
+                    default: Math.floor((result.data.slug_min_length + result.data.slug_max_length) / 2) || 6
+                };
+                
+                console.log('✅ Конфигурация загружена:', state.slugLengthConfig);
+                
+                // Обновляем слайдер с новыми значениями
+                updateSliderConfig();
+            }
+        } catch (error) {
+            console.error('❌ Ошибка загрузки конфигурации:', error);
+            // Используем значения по умолчанию
+            showToast('Используются стандартные настройки длины', 'info');
+        }
+    }
+
+    // НОВЫЙ МЕТОД: Обновление конфигурации слайдера
+    function updateSliderConfig() {
+        if (!elements.slugLength) return;
+        
+        const { min, max, default: defaultValue } = state.slugLengthConfig;
+        
+        // Обновляем атрибуты слайдера
+        elements.slugLength.min = min;
+        elements.slugLength.max = max;
+        elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
+        
+        // Обновляем отображение значения
+        updateLengthDisplay();
+        
+        // Обновляем маркеры слайдера
+        if (elements.sliderMarkers) {
+            elements.sliderMarkers.innerHTML = `
+                <span>${min}</span>
+                <span>${Math.floor((min + max) / 2)}</span>
+                <span>${max}</span>
+            `;
+        }
+        
+        console.log(`✅ Слайдер обновлен: min=${min}, max=${max}, default=${defaultValue}`);
     }
 
     // Функция для управления состоянием полей
@@ -64,10 +122,14 @@ const UI = (function() {
     }
 
     // Инициализация
-    function init() {
+    async function init() {
         console.log('UI initialized');
         initElements();
         initTheme();
+        
+        // Загружаем конфигурацию перед настройкой слушателей
+        await loadSlugLengthConfig();
+        
         setupEventListeners();
         
         // Инициализируем состояние полей
@@ -154,7 +216,8 @@ const UI = (function() {
                 elements.customSlug.value = '';
             }
             if (elements.slugLength) {
-                elements.slugLength.value = 6;
+                const { min, max, default: defaultValue } = state.slugLengthConfig;
+                elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
                 elements.slugLength.disabled = false;
                 elements.slugLength.classList.remove('disabled');
                 elements.lengthValue.classList.remove('disabled');
@@ -173,13 +236,14 @@ const UI = (function() {
     // Валидация кастомного slug
     function validateCustomSlug() {
         const slug = elements.customSlug.value;
+        const { min } = state.slugLengthConfig;
         const pattern = /^[a-zA-Z0-9_-]*$/;
         
         if (slug && !pattern.test(slug)) {
             elements.customSlug.setCustomValidity('Только латинские буквы, цифры, дефис и подчеркивание');
             elements.customSlug.classList.add('invalid');
-        } else if (slug && slug.length < 3) {
-            elements.customSlug.setCustomValidity('Минимум 3 символа');
+        } else if (slug && slug.length < min) {
+            elements.customSlug.setCustomValidity(`Минимум ${min} символа(ов)`);
             elements.customSlug.classList.add('invalid');
         } else {
             elements.customSlug.setCustomValidity('');
@@ -225,8 +289,9 @@ const UI = (function() {
         }
         // Проверяем валидность length ТОЛЬКО если настройки открыты И нет custom_slug
         else if (useLength && length !== null) {
+            const { min, max } = state.slugLengthConfig;
             length = parseInt(length);
-            if (isNaN(length) || length < 3 || length > 10) {
+            if (isNaN(length) || length < min || length > max) {
                 console.warn('Invalid length value, using default');
                 length = null;
             } else {
@@ -240,9 +305,10 @@ const UI = (function() {
         
         // Валидация кастомного slug если он указан
         if (customSlug) {
+            const { min } = state.slugLengthConfig;
             const pattern = /^[a-zA-Z0-9_-]{3,}$/;
-            if (!pattern.test(customSlug)) {
-                showToast('Некорректный формат кастомной ссылки', 'error');
+            if (!pattern.test(customSlug) || customSlug.length < min) {
+                showToast(`Некорректный формат кастомной ссылки (минимум ${min} символов)`, 'error');
                 return;
             }
             console.log('✅ Using custom slug:', customSlug);
@@ -301,7 +367,8 @@ const UI = (function() {
             elements.customSlug.value = '';
         }
         if (elements.slugLength) {
-            elements.slugLength.value = 6;
+            const { min, max, default: defaultValue } = state.slugLengthConfig;
+            elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
             elements.slugLength.disabled = false;
             elements.slugLength.classList.remove('disabled');
             elements.lengthValue.classList.remove('disabled');

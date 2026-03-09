@@ -45,7 +45,7 @@ async def shorten(session: SessionDep,
                   custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None                  
 ) -> JSONResponse:
 
-    slug = await create_url(session, length) if not custom_slug else custom_slug
+    slug = await create_url(session, settings, length) if not custom_slug else custom_slug
 
     try:
         await crud.write_url(slug = slug, long_url = str(long_url.url), session = session)

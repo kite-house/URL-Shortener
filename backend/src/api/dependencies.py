@@ -6,7 +6,6 @@ from src.db.db import async_session
 from src.core.config import Settings
 from src.core.redis import RedisService
 
-# ====== SESSION DB ======
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:
@@ -16,14 +15,12 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
-# ====== SETTINGS ======
 async def get_settings() -> AsyncGenerator[Settings, None]:
     settings = Settings()
     yield settings
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
-# ====== REDIS ======
 async def get_redis_service(settings: SettingsDep) -> AsyncGenerator[RedisService, None]:
     redis_service = RedisService(settings)
     try:

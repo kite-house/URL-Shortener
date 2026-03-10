@@ -443,14 +443,52 @@ body {
 }
 
 .input-prefix {
-    padding: 0 0.75rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    background: var(--bg-secondary);
+    padding: 0 1.2rem;
+    background: linear-gradient(145deg, var(--primary-500), var(--primary-700));
     height: 100%;
     display: flex;
     align-items: center;
-    border-right: 2px solid var(--border-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1.2rem;
+    border-right: 2px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 2px 0 10px rgba(79, 70, 229, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Блестящий эффект при наведении */
+.input-prefix::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.3), 
+        transparent
+    );
+    transition: left 0.7s ease;
+}
+
+.setting-input-wrapper:hover .input-prefix::before {
+    left: 100%;
+}
+
+/* Эффект при фокусе */
+.setting-input-wrapper:focus-within .input-prefix {
+    background: linear-gradient(145deg, var(--primary-600), var(--primary-800));
+    box-shadow: 0 0 20px var(--primary-500);
+    border-right-color: var(--primary-300);
+}
+
+/* Адаптация для темной темы */
+.dark-theme .input-prefix {
+    background: linear-gradient(145deg, var(--primary-600), var(--primary-900));
+    box-shadow: 2px 0 15px rgba(129, 140, 248, 0.5);
 }
 
 .setting-input {
@@ -482,11 +520,14 @@ body {
     background: var(--border-color);
     border-radius: 3px;
     outline: none;
-    -webkit-appearance: none;
+    -webkit-appearance: none;  /* Для Safari и Chrome */
+    -moz-appearance: none;     /* Для Firefox */
+    appearance: none;          /* Стандартное свойство */
 }
 
 .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 20px;
     height: 20px;
     background: var(--accent-color);
@@ -497,6 +538,21 @@ body {
 }
 
 .slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 2px 10px var(--accent-color);
+    border: none;
+}
+
+.slider::-moz-range-thumb:hover {
     transform: scale(1.2);
 }
 
@@ -515,6 +571,7 @@ body {
     background: linear-gradient(135deg, var(--primary-50), var(--primary-100));
     border-radius: 20px;
     animation: slideUp 0.5s ease;
+    border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .dark-theme .result-card {
@@ -562,6 +619,8 @@ body {
     background: transparent;
     color: var(--text-primary);
     font-size: 0.95rem;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
 }
 
 .url-display input:focus {
@@ -579,10 +638,30 @@ body {
     cursor: pointer;
     transition: all var(--transition-base);
     font-weight: 500;
+    position: relative;
+    overflow: hidden;
 }
 
 .copy-btn:hover {
     background: var(--accent-hover);
+}
+
+.copy-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.copy-btn:hover::before {
+    width: 300px;
+    height: 300px;
 }
 
 .original-url {
@@ -602,49 +681,6 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* Mini Stats */
-.stats-mini {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding-top: 1rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-}
-
-.stat-item i {
-    color: var(--accent-color);
-    font-size: 1.2rem;
-}
-
-.stat-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.stat-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.stat-value {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.stat-divider {
-    width: 1px;
-    height: 30px;
-    background: var(--border-color);
 }
 
 /* Footer */
@@ -821,17 +857,184 @@ body {
         justify-content: center;
     }
     
-    .stats-mini {
-        flex-direction: column;
-    }
-    
-    .stat-divider {
-        display: none;
-    }
-    
     .footer {
         flex-direction: column;
         gap: 1rem;
         text-align: center;
+    }
+}
+
+/* Дополнительные стили для улучшенного UI */
+
+/* Стили для заблокированного поля */
+.field-disabled {
+    opacity: 0.7;
+    position: relative;
+    pointer-events: none;
+}
+
+.field-disabled::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(128, 128, 128, 0.05);
+    border-radius: 12px;
+    pointer-events: none;
+}
+
+.slider.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.slider.disabled::-webkit-slider-thumb {
+    background: var(--gray-400);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.slider.disabled::-webkit-slider-thumb:hover {
+    transform: none;
+}
+
+.slider.disabled::-moz-range-thumb {
+    background: var(--gray-400);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.slider.disabled::-moz-range-thumb:hover {
+    transform: none;
+}
+
+#lengthValue.disabled {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* Стили для подсказок */
+.field-hint {
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    animation: slideDown 0.3s ease;
+    width: 100%;
+}
+
+.field-hint i {
+    font-size: 0.9rem;
+}
+
+.field-hint-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    border-left: 3px solid #f59e0b;
+}
+
+.field-hint-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-left: 3px solid #ef4444;
+}
+
+.field-hint-success {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-left: 3px solid #10b981;
+}
+
+.field-hint-info {
+    background: rgba(59, 130, 246, 0.1);
+    color: #3b82f6;
+    border-left: 3px solid #3b82f6;
+}
+
+/* Стили для невалидного поля */
+.setting-input.invalid {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.02);
+}
+
+.setting-input.invalid:focus {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Стили для активной кнопки настроек */
+.settings-btn.active {
+    background: var(--accent-color);
+    color: white;
+    transform: rotate(90deg);
+}
+
+.settings-btn i {
+    transition: transform 0.3s ease;
+}
+
+/* Кнопка закрытия результата */
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--success-color);
+    font-weight: 500;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.close-result-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    transition: all var(--transition-base);
+    font-size: 1rem;
+    padding: 0;
+}
+
+.close-result-btn:hover {
+    background: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+    transform: rotate(90deg);
+}
+
+.dark-theme .close-result-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.dark-theme .close-result-btn:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* Анимация для скрытия результата */
+.result-card.hiding {
+    animation: slideDown 0.3s ease forwards;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(20px);
     }
 }

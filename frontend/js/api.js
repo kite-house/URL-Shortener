@@ -1,20 +1,40 @@
-// api.js - Модуль для работы с API
+// ui.js - Модуль для работы с API
 const API = (function() {
-    // Конфигурация API
     const API_CONFIG = {
-        baseURL: 'http://localhost:8000/api',  // для разработки
-        // baseURL: '/api',  // для продакшна (через nginx)
+        baseURL: 'http://localhost:8000/api',
         endpoints: {
             shorten: '/shorten',
             info: '/info',
             top: "/top",
             config: {
-                slugLength: '/config/slug-length'
+                slugLength: '/config/slug-length',
+                frontend: '/config/frontend'
             }
         }
     };
 
-    // Вспомогательная функция для обработки ответов
+    // Флаг для режима продакшн
+    let isProdMode = false;
+
+    // Функция для условного логирования
+    function logIfDev(...args) {
+        if (!isProdMode) {
+            console.log(...args);
+        }
+    }
+
+    function errorLogIfDev(...args) {
+        if (!isProdMode) {
+            console.error(...args);
+        }
+    }
+
+    function warnLogIfDev(...args) {
+        if (!isProdMode) {
+            console.warn(...args);
+        }
+    }
+
     async function handleResponse(response) {
         const data = await response.json();
         
@@ -29,16 +49,45 @@ const API = (function() {
         };
     }
 
-    // Отправка запроса на сокращение ссылки с дополнительными параметрами
+    async function getFrontendConfig() {
+        try {
+            logIfDev('📡 Запрос к /api/config/frontend');
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            
+            const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.config.frontend}`, {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // Устанавливаем режим продакшн если нужно
+            if (data.mode === 'PROD') {
+                isProdMode = true;
+                logIfDev('🔒 Продакшн режим: логирование отключено');
+            }
+            
+            logIfDev('📦 Получены данные:', data);
+            return data;
+        } catch (error) {
+            errorLogIfDev('❌ Ошибка загрузки конфигурации:', error);
+            return null;
+        }
+    }
+
     async function shortenUrl(url, customSlug = null, length = null) {
         try {
-            // Формируем URL с query параметрами
             let urlString = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.shorten}`;
             
-            // Создаем объект URLSearchParams для правильного формирования query строки
             const params = new URLSearchParams();
             
-            // Добавляем параметр length если он есть
             if (length !== null && length !== undefined) {
                 const lengthNum = parseInt(length);
                 if (!isNaN(lengthNum) && lengthNum >= 3 && lengthNum <= 10) {
@@ -46,16 +95,13 @@ const API = (function() {
                 }
             }
             
-            // Добавляем параметр custom_slug если он есть
             if (customSlug && customSlug.trim() !== '') {
                 const slug = customSlug.trim();
-                // Проверяем валидность custom_slug
                 if (/^[a-zA-Z0-9_-]{3,}$/.test(slug)) {
                     params.append('custom_slug', slug);
                 }
             }
             
-            // Добавляем параметры к URL если они есть
             if (params.toString()) {
                 urlString += `?${params.toString()}`;
             }
@@ -69,45 +115,40 @@ const API = (function() {
             });
             
             const result = await handleResponse(response);
-            
             return result;
         } catch (error) {
-            console.error('API Error:', error);
+            errorLogIfDev('API Error:', error);
             throw error;
         }
     }
 
-    // Получение статистики по ссылке
     async function getLinkStats(slug) {
         try {
             const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.info}/${slug}`);
             return await handleResponse(response);
         } catch (error) {
-            console.error('API Error:', error);
+            errorLogIfDev('API Error:', error);
             throw error;
         }
     }
 
-    // Получение топа ссылок
     async function getTopLinks(quantity = 10) {
         try {
             const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.top}?quantity=${quantity}`);
             return await handleResponse(response);
         } catch (error) {
-            console.error('API Error:', error);
+            errorLogIfDev('API Error:', error);
             throw error;
         }
     }
 
-    // Получение допустимой длины слага
     async function getSlugLengthConfig() {
         try {
             const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.config.slugLength}`);
             const result = await handleResponse(response);
             return result;
         } catch (error) {
-            console.error('API Error:', error);
-            // Возвращаем значения по умолчанию в случае ошибки
+            errorLogIfDev('API Error:', error);
             return {
                 success: false,
                 data: {
@@ -118,11 +159,17 @@ const API = (function() {
         }
     }
 
-    // Публичное API
+    // Функция для проверки режима (может пригодиться в UI)
+    function isProduction() {
+        return isProdMode;
+    }
+
     return {
         shortenUrl,
         getLinkStats,
         getTopLinks,
-        getSlugLengthConfig
+        getSlugLengthConfig,
+        getFrontendConfig,
+        isProduction
     };
 })();

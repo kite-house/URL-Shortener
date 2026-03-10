@@ -36,6 +36,10 @@ async def get_length_query(settings: SettingsDep, length: int | None = Query(Non
             )
     return length
 
+
+
+
+
 @router.post('/shorten', summary = "Сократить ссылку", tags = ['Shorten 🛠️'])
 async def shorten(session: SessionDep, 
                   long_url: UrlSchema,
@@ -44,7 +48,7 @@ async def shorten(session: SessionDep,
                   length: Annotated[int | None, Depends(get_length_query)] = None,  
                   custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None                  
 ) -> JSONResponse:
-
+    
     slug = await create_url(session, settings, length) if not custom_slug else custom_slug
 
     try:

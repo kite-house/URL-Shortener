@@ -5,15 +5,42 @@ const UI = (function() {
         currentSlug: null,
         isLoading: false,
         advancedOpen: false,
+        appConfig: {
+            app_name: "URL-Shortener",
+            version: "1.0.0",
+            mode: "DEV",
+            example_url: "https://example.com/very/long/url",
+            api_base_url: "http://localhost:8000/api"
+        },
         slugLengthConfig: {
             min: 3,
             max: 10,
             default: 6
-        }
+        },
+        isProdMode: false
     };
 
     // DOM элементы
     const elements = {};
+
+    // Функции для условного логирования
+    function logIfDev(...args) {
+        if (!state.isProdMode) {
+            console.log(...args);
+        }
+    }
+
+    function errorLogIfDev(...args) {
+        if (!state.isProdMode) {
+            console.error(...args);
+        }
+    }
+
+    function warnLogIfDev(...args) {
+        if (!state.isProdMode) {
+            console.warn(...args);
+        }
+    }
 
     // Функция для инициализации элементов
     function initElements() {
@@ -21,7 +48,7 @@ const UI = (function() {
         elements.urlInput = document.getElementById('urlInput');
         elements.shortenBtn = document.getElementById('shortenBtn');
         elements.resultCard = document.getElementById('resultCard');
-        elements.closeResultBtn = document.getElementById('closeResultBtn'); // Добавлено
+        elements.closeResultBtn = document.getElementById('closeResultBtn');
         elements.shortUrl = document.getElementById('shortUrl');
         elements.originalUrl = document.getElementById('originalUrl');
         elements.themeToggle = document.querySelector('.theme-toggle');
@@ -38,6 +65,77 @@ const UI = (function() {
         // Элементы для отображения статуса полей
         elements.slugLengthContainer = document.querySelector('.setting-item:has(#slugLength)');
         elements.customSlugContainer = document.querySelector('.setting-item:has(#customSlug)');
+        
+        // Элементы для динамических данных
+        elements.footerParagraph = document.querySelector('.footer p');
+        elements.logoText = document.querySelector('.logo-text');
+        elements.pageTitle = document.querySelector('title');
+    }
+
+    // Обновление APP_NAME в интерфейсе
+    function updateAppNameInUI(appName) {
+        logIfDev(`🔄 Обновляем APP_NAME на: ${appName}`);
+        
+        // Обновляем title страницы
+        if (elements.pageTitle) {
+            elements.pageTitle.textContent = `${appName} | Сервис сокращения ссылок`;
+        }
+        
+        // Обновляем логотип
+        if (elements.logoText) {
+            elements.logoText.innerHTML = appName;
+        }
+        
+        // Обновляем футер
+        if (elements.footerParagraph) {
+            const currentYear = new Date().getFullYear();
+            elements.footerParagraph.innerHTML = `© ${currentYear} ${appName}. Все права защищены.`;
+        }
+    }
+
+    // Обновление placeholder'а
+    function updatePlaceholder(exampleUrl) {
+        if (elements.urlInput) {
+            elements.urlInput.placeholder = exampleUrl;
+        }
+    }
+
+    // Загрузка конфигурации с бэкенда
+    async function loadFrontendConfig() {
+        try {
+            logIfDev('🔄 Загрузка конфигурации с бэкенда...');
+            
+            const config = await API.getFrontendConfig();
+            
+            if (config && config.app_name) {
+                // Устанавливаем режим продакшн
+                if (config.mode === 'PROD') {
+                    state.isProdMode = true;
+                    // В продакшне очищаем консоль от предыдущих логов
+                    if (console.clear) {
+                        console.clear();
+                    }
+                    logIfDev('🔒 Продакшн режим: логирование отключено');
+                }
+                
+                logIfDev('✅ Конфигурация получена:', config);
+                
+                // Обновляем состояние
+                state.appConfig = { ...state.appConfig, ...config };
+                
+                // Обновляем интерфейс
+                updateAppNameInUI(config.app_name);
+                updatePlaceholder(config.example_url || state.appConfig.example_url);
+            } else {
+                warnLogIfDev('⚠️ Конфигурация не получена, используем значения по умолчанию');
+                updateAppNameInUI(state.appConfig.app_name);
+                updatePlaceholder(state.appConfig.example_url);
+            }
+        } catch (error) {
+            errorLogIfDev('❌ Ошибка загрузки конфигурации:', error);
+            updateAppNameInUI(state.appConfig.app_name);
+            updatePlaceholder(state.appConfig.example_url);
+        }
     }
 
     // Загрузка конфигурации длины слага
@@ -52,12 +150,10 @@ const UI = (function() {
                     default: Math.floor((result.data.slug_min_length + result.data.slug_max_length) / 2) || 6
                 };
                 
-                // Обновляем слайдер с новыми значениями
                 updateSliderConfig();
             }
         } catch (error) {
-            // Используем значения по умолчанию
-            showToast('Используются стандартные настройки длины', 'info');
+            warnLogIfDev('⚠️ Не удалось загрузить настройки длины');
         }
     }
 
@@ -67,15 +163,12 @@ const UI = (function() {
         
         const { min, max, default: defaultValue } = state.slugLengthConfig;
         
-        // Обновляем атрибуты слайдера
         elements.slugLength.min = min;
         elements.slugLength.max = max;
         elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
         
-        // Обновляем отображение значения
         updateLengthDisplay();
         
-        // Обновляем маркеры слайдера
         if (elements.sliderMarkers) {
             elements.sliderMarkers.innerHTML = `
                 <span>${min}</span>
@@ -89,7 +182,6 @@ const UI = (function() {
     function showFieldHint(container, message, type = 'warning') {
         if (!container) return;
         
-        // Удаляем старую подсказку если есть
         hideFieldHint(container);
         
         const hint = document.createElement('div');
@@ -101,7 +193,6 @@ const UI = (function() {
         container.appendChild(hint);
     }
 
-    // Функция для скрытия подсказки
     function hideFieldHint(container) {
         if (!container) return;
         const oldHint = container.querySelector('.field-hint');
@@ -110,86 +201,66 @@ const UI = (function() {
         }
     }
 
-    // Функция для управления состоянием полей
     function toggleFieldsState() {
         if (!elements.customSlug || !elements.slugLength) return;
         
         const customSlugValue = elements.customSlug.value.trim();
         const isCustomSlugFilled = customSlugValue !== '';
         
-        // Блокируем/разблокируем слайдер длины
         elements.slugLength.disabled = isCustomSlugFilled;
         
-        // Добавляем/убираем класс disabled для визуального эффекта
         if (isCustomSlugFilled) {
             elements.slugLength.classList.add('disabled');
             elements.lengthValue.classList.add('disabled');
             elements.slugLengthContainer?.classList.add('field-disabled');
-            
-            // Добавляем подсказку
             showFieldHint(elements.slugLengthContainer, 'Недоступно при использовании своего варианта', 'warning');
         } else {
             elements.slugLength.classList.remove('disabled');
             elements.lengthValue.classList.remove('disabled');
             elements.slugLengthContainer?.classList.remove('field-disabled');
-            
-            // Убираем подсказку
             hideFieldHint(elements.slugLengthContainer);
         }
     }
 
-    // Валидация кастомного slug
     function validateCustomSlug() {
         const slug = elements.customSlug.value;
         const { min, max } = state.slugLengthConfig;
         const pattern = /^[a-zA-Z0-9_-]*$/;
         
-        // Удаляем старые сообщения об ошибках
         hideFieldHint(elements.customSlugContainer);
         
         if (slug && !pattern.test(slug)) {
             elements.customSlug.setCustomValidity('Только латинские буквы, цифры, дефис и подчеркивание');
             elements.customSlug.classList.add('invalid');
-            
-            // Показываем сообщение об ошибке
             showFieldHint(elements.customSlugContainer, 'Только латинские буквы, цифры, дефис и подчеркивание', 'error');
         } else if (slug && slug.length < min) {
             elements.customSlug.setCustomValidity(`Минимум ${min} символа(ов)`);
             elements.customSlug.classList.add('invalid');
-            
-            // Показываем сообщение об ошибке
             showFieldHint(elements.customSlugContainer, `Минимальная длина: ${min} символа(ов)`, 'error');
         } else if (slug && slug.length > max) {
             elements.customSlug.setCustomValidity(`Максимум ${max} символов`);
             elements.customSlug.classList.add('invalid');
-            
-            // Показываем сообщение об ошибке
             showFieldHint(elements.customSlugContainer, `Максимальная длина: ${max} символов`, 'error');
         } else {
             elements.customSlug.setCustomValidity('');
             elements.customSlug.classList.remove('invalid');
             
-            // Если поле не пустое и валидное, показываем подсказку об успехе
             if (slug) {
                 showFieldHint(elements.customSlugContainer, '✓ Корректный формат', 'success');
             }
         }
     }
 
-    // Объединенная функция для обработки изменений в custom slug
     function handleCustomSlugChange() {
         validateCustomSlug();
         toggleFieldsState();
     }
 
-    // Функция для закрытия результата
     function closeResult() {
         if (!elements.resultCard) return;
         
-        // Добавляем класс для анимации
         elements.resultCard.classList.add('hiding');
         
-        // Ждем окончания анимации и скрываем
         setTimeout(() => {
             elements.resultCard.style.display = 'none';
             elements.resultCard.classList.remove('hiding');
@@ -197,23 +268,33 @@ const UI = (function() {
         }, 300);
     }
 
-    // Инициализация
     async function init() {
+        // Только один лог при инициализации, который будет виден в DEV режиме
+        logIfDev('🚀 Инициализация UI...');
+        
         initElements();
         initTheme();
         
-        // Загружаем конфигурацию перед настройкой слушателей
+        // Сначала устанавливаем значения по умолчанию
+        updateAppNameInUI(state.appConfig.app_name);
+        updatePlaceholder(state.appConfig.example_url);
+        
+        // Затем пытаемся загрузить конфигурацию с бэкенда
+        await loadFrontendConfig();
         await loadSlugLengthConfig();
         
         setupEventListeners();
         
-        // Инициализируем состояние полей
         if (elements.customSlug) {
             toggleFieldsState();
         }
+        
+        // Финальный лог только в DEV
+        if (!state.isProdMode) {
+            logIfDev('✅ Инициализация завершена в режиме', state.appConfig.mode);
+        }
     }
 
-    // Настройка обработчиков событий
     function setupEventListeners() {
         if (elements.form) {
             elements.form.addEventListener('submit', handleFormSubmit);
@@ -223,48 +304,33 @@ const UI = (function() {
             elements.themeToggle.addEventListener('click', toggleTheme);
         }
         
-        // Слушатель для слайдера длины
         if (elements.slugLength) {
             elements.slugLength.addEventListener('input', updateLengthDisplay);
         }
         
-        // Валидация custom slug при вводе
         if (elements.customSlug) {
             elements.customSlug.addEventListener('input', handleCustomSlugChange);
         }
         
-        // Кнопка открытия/закрытия доп. настроек
         if (elements.toggleAdvancedBtn) {
-            elements.toggleAdvancedBtn.addEventListener('click', function(event) {
-                event.preventDefault();
-                event.stopPropagation();
+            elements.toggleAdvancedBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 toggleAdvancedSettings();
             });
         }
         
-        // Кнопка закрытия результата
         if (elements.closeResultBtn) {
             elements.closeResultBtn.addEventListener('click', closeResult);
         }
         
-        // Закрытие по клавише Escape
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && elements.resultCard.style.display === 'block') {
-                closeResult();
-            }
-        });
-        
-        // Закрытие по клику вне карточки (опционально)
-        document.addEventListener('click', function(e) {
-            if (elements.resultCard.style.display === 'block' && 
-                !elements.resultCard.contains(e.target) && 
-                !elements.form.contains(e.target)) {
                 closeResult();
             }
         });
     }
 
-    // Открыть/закрыть дополнительные настройки
     function toggleAdvancedSettings() {
         if (!elements.advancedSettings) return;
         
@@ -274,20 +340,15 @@ const UI = (function() {
             elements.advancedSettings.style.display = 'block';
             elements.toggleAdvancedBtn.classList.add('active');
             elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(90deg)';
-            
-            // При открытии проверяем состояние полей
             toggleFieldsState();
         } else {
             elements.advancedSettings.style.display = 'none';
             elements.toggleAdvancedBtn.classList.remove('active');
             elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(0deg)';
-            
-            // Сбрасываем значения при закрытии
             resetAdvancedFields();
         }
     }
 
-    // Функция для сброса дополнительных полей
     function resetAdvancedFields() {
         if (elements.customSlug) {
             elements.customSlug.value = '';
@@ -306,21 +367,18 @@ const UI = (function() {
         }
     }
 
-    // Обновление отображения длины слайдера
     function updateLengthDisplay() {
         if (elements.lengthValue && elements.slugLength) {
             elements.lengthValue.textContent = elements.slugLength.value;
         }
     }
 
-    // Обработка отправки формы
     async function handleFormSubmit(e) {
         e.preventDefault();
         
         const url = elements.urlInput.value.trim();
         if (!url) return;
         
-        // Валидация URL
         try {
             new URL(url);
         } catch {
@@ -328,11 +386,9 @@ const UI = (function() {
             return;
         }
         
-        // Получаем дополнительные параметры
         let customSlug = elements.customSlug ? elements.customSlug.value.trim() : null;
         let length = elements.slugLength ? parseInt(elements.slugLength.value) : null;
         
-        // Проверяем валидность custom_slug
         if (customSlug) {
             const { min, max } = state.slugLengthConfig;
             const pattern = /^[a-zA-Z0-9_-]+$/;
@@ -352,11 +408,8 @@ const UI = (function() {
                 return;
             }
             
-            // Если custom_slug валидный, length не используется
             length = null;
-        }
-        // Если custom_slug пустой, используем length
-        else {
+        } else {
             if (length !== null) {
                 const { min, max } = state.slugLengthConfig;
                 if (isNaN(length) || length < min || length > max) {
@@ -385,7 +438,6 @@ const UI = (function() {
         }
     }
 
-    // Обработка успешного ответа
     function handleSuccessResponse(responseData, originalUrl, message) {
         let displayUrl = responseData.short_url;
         if (displayUrl.includes('localhost')) {
@@ -418,14 +470,13 @@ const UI = (function() {
         }
     }
 
-    // Копирование в буфер обмена
     window.copyToClipboard = async function() {
         const shortUrl = elements.shortUrl.value;
         
         try {
             await navigator.clipboard.writeText(shortUrl);
             showToast('Ссылка скопирована!', 'success');
-        } catch (err) {
+        } catch {
             const textarea = document.createElement('textarea');
             textarea.value = shortUrl;
             document.body.appendChild(textarea);
@@ -436,7 +487,6 @@ const UI = (function() {
         }
     };
 
-    // Переключение темы
     function toggleTheme() {
         document.body.classList.toggle('dark-theme');
         const icon = elements.themeToggle.querySelector('i');
@@ -450,7 +500,6 @@ const UI = (function() {
         }
     }
 
-    // Инициализация темы
     function initTheme() {
         const savedTheme = localStorage.getItem('theme');
         
@@ -464,11 +513,9 @@ const UI = (function() {
             if (elements.themeToggle) {
                 elements.themeToggle.querySelector('i').className = 'fas fa-sun';
             }
-            localStorage.setItem('theme', 'dark');
         }
     }
 
-    // Показ уведомлений
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
@@ -489,7 +536,6 @@ const UI = (function() {
         }, 3000);
     }
 
-    // Управление состоянием загрузки
     function setLoading(isLoading) {
         state.isLoading = isLoading;
         const btn = elements.shortenBtn;
@@ -507,14 +553,12 @@ const UI = (function() {
         }
     }
 
-    // Публичное API UI модуля
     return {
         init,
         showToast
     };
 })();
 
-// Инициализация приложения после загрузки DOM
 document.addEventListener('DOMContentLoaded', () => {
     UI.init();
 });

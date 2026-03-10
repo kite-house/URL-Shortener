@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from typing import Annotated
 
+from src.schemas.urls import UrlSchema
 from src.api.dependencies import SettingsDep
 
 router = APIRouter(prefix="/api/config", tags = ['Configuration ⚙️'])
@@ -25,5 +26,6 @@ async def get_frontend_config(settings: SettingsDep) -> JSONResponse:
             "version": settings.VERSION,
             "api_base_url": settings.API_BASE_URL,
             "mode": settings.MODE,
+            "example_url": UrlSchema.Config.json_schema_extra["example"]["url"]
         }
     )

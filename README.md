@@ -121,8 +121,8 @@ curl -X POST "http://localhost:8000/api/shorten?length=5" \
 json
 {
   "status_code": 200,
-  "cached": True,
-  "message": "Ссылка успешно создана!"
+  "cached": true,
+  "message": "Ссылка успешно создана!",
   "content": {
     "slug": "my-page",
     "short_url": "http://localhost:8000/api/my-page",
@@ -145,18 +145,19 @@ curl http://localhost:8000/api/info/my-page
 
 json
 {
-  status_code = 200,
-  content = {
-      "success" : True,
-      "message" : "Успешно найден!",
-      "data" : {
-          "slug" : "my-page",
-          "short_url" : f"http://localhost:8000/api/my-page",
-          "long_url" : https://example.com,
-          "count_clicks" : 13,
-          "date_created" : "10.03.2026"
-      } 
+  "status_code": 200,
+  "content": {
+    "success": true,
+    "message": "Успешно найден!",
+    "data": {
+      "slug": "my-page",
+      "short_url": "http://localhost:8000/api/my-page",
+      "long_url": "https://example.com",
+      "count_clicks": 13,
+      "date_created": "10.03.2026"
+    }
   }
+}
 🧪 Тестирование
 Запуск тестов внутри Docker-контейнера:
 
@@ -200,16 +201,15 @@ URL-Shortener/
 │       └── utils/                         # Вспомогательные модули
 │           ├── helpers.py
 │           └── conflict.py
-├── frontend/                               # Статические файлы веб-интерфейса
-│   ├── assets/                              # Ресурсы (изображения, шрифты)
-│   ├── css/
-│   │   └── style.css                        # Стили с анимациями и темами
-│   ├── js/
-│   │   ├── api.js                           # Модуль для работы с API
-│   │   └── ui.js                            # Модуль для управления интерфейсом
-│   ├── Dockerfile
-│   └── index.html                           # Главная страница
-
+└── frontend/                               # Статические файлы веб-интерфейса
+    ├── assets/                              # Ресурсы (изображения, шрифты)
+    ├── css/
+    │   └── style.css                        # Стили с анимациями и темами
+    ├── js/
+    │   ├── api.js                           # Модуль для работы с API
+    │   └── ui.js                            # Модуль для управления интерфейсом
+    ├── Dockerfile
+    └── index.html                           # Главная страница
 🎨 Особенности интерфейса
 Анимированный градиентный фон с плавающими сферами
 

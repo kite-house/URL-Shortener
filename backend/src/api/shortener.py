@@ -2,13 +2,12 @@ from fastapi import APIRouter, HTTPException, status, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Annotated
 from sqlalchemy.exc import NoResultFound
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import AfterValidator
-from redis import Redis
 from datetime import datetime
 
 from src.schemas.urls import UrlSchema
 from src.services.slug_generator import create_url
+from src.services.url_checker import is_url_available
 from src.db import crud 
 from src.api.dependencies import SessionDep, SettingsDep, RedisDep
 from src.core.exceptions import URLAlreadyRegistered
@@ -48,7 +47,9 @@ async def shorten(session: SessionDep,
                   length: Annotated[int | None, Depends(get_length_query)] = None,  
                   custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None                  
 ) -> JSONResponse:
-    
+    if not await is_url_available(str(long_url.url)):
+        raise HTTPException(status_code = status.HTTP_422_UNPROCESSABLE_CONTENT, detail = "Данная ссылка недоступна!")
+
     slug = await create_url(session, settings, length) if not custom_slug else custom_slug
 
     try:

@@ -56,6 +56,8 @@
                                     id="urlInput" 
                                     placeholder="Загрузка..." 
                                     required
+                                    autocomplete="off"
+                                    spellcheck="false"
                                 >
                                 <button type="submit" id="shortenBtn" class="btn-primary">
                                     <span class="btn-text">Сократить</span>
@@ -86,6 +88,8 @@
                                                 id="customSlug" 
                                                 placeholder="my-custom-link"
                                                 class="setting-input"
+                                                autocomplete="off"
+                                                spellcheck="false"
                                             >
                                         </div>
                                         <small class="setting-hint">Только латинские буквы, цифры, дефис и подчеркивание</small>
@@ -148,7 +152,7 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p></p> <!-- Пустой параграф, заполним через JS -->
+            <p></p>
             <div class="footer-links">
                 <a href="https://github.com/kite-house/URL-Shortener" class="footer-link"><i class="fab fa-github"></i></a>
             </div>

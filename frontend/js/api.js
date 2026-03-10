@@ -1,4 +1,3 @@
-// ui.js - Модуль для работы с API
 const API = (function() {
     const API_CONFIG = {
         baseURL: 'http://localhost:8000/api',
@@ -13,10 +12,8 @@ const API = (function() {
         }
     };
 
-    // Флаг для режима продакшн
     let isProdMode = false;
 
-    // Функция для условного логирования
     function logIfDev(...args) {
         if (!isProdMode) {
             console.log(...args);
@@ -29,17 +26,66 @@ const API = (function() {
         }
     }
 
-    function warnLogIfDev(...args) {
-        if (!isProdMode) {
-            console.warn(...args);
-        }
-    }
-
     async function handleResponse(response) {
+        // Проверяем статус ответа
+        if (!response.ok) {
+            let errorMessage = 'Ошибка запроса';
+            
+            try {
+                const errorData = await response.json();
+                console.log('🔍 Детали ошибки:', errorData);
+                
+                // Обработка ошибки валидации Pydantic
+                if (Array.isArray(errorData)) {
+                    // Это ошибка валидации Pydantic
+                    const firstError = errorData[0];
+                    if (firstError && firstError.msg) {
+                        errorMessage = firstError.msg;
+                        // Добавляем контекст если есть
+                        if (firstError.ctx) {
+                            if (firstError.ctx.expected_schemes) {
+                                errorMessage = `URL должен начинаться с http:// или https://`;
+                            }
+                        }
+                    } else {
+                        errorMessage = 'Ошибка валидации URL';
+                    }
+                }
+                // Обработка стандартной ошибки FastAPI
+                else if (errorData.detail) {
+                    if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else if (Array.isArray(errorData.detail)) {
+                        // Массив ошибок валидации
+                        const firstError = errorData.detail[0];
+                        if (firstError && firstError.msg) {
+                            errorMessage = firstError.msg;
+                            if (firstError.ctx && firstError.ctx.expected_schemes) {
+                                errorMessage = `URL должен начинаться с http:// или https://`;
+                            }
+                        }
+                    } else if (typeof errorData.detail === 'object') {
+                        errorMessage = JSON.stringify(errorData.detail);
+                    } else {
+                        errorMessage = errorData.detail;
+                    }
+                } else if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch (e) {
+                // Если не удалось распарсить JSON
+                errorMessage = `HTTP ошибка ${response.status}`;
+            }
+            
+            throw new Error(errorMessage);
+        }
+        
         const data = await response.json();
         
-        if (!response.ok && response.status !== 208) {
-            throw new Error(data.message || 'Ошибка запроса');
+        // Проверяем, нет ли ошибки в теле ответа
+        if (data.status_code && data.status_code >= 400) {
+            const errorMsg = data.detail || data.message || 'Ошибка сервера';
+            throw new Error(errorMsg);
         }
         
         return {
@@ -68,7 +114,6 @@ const API = (function() {
             
             const data = await response.json();
             
-            // Устанавливаем режим продакшн если нужно
             if (data.mode === 'PROD') {
                 isProdMode = true;
                 logIfDev('🔒 Продакшн режим: логирование отключено');
@@ -106,19 +151,34 @@ const API = (function() {
                 urlString += `?${params.toString()}`;
             }
             
+            logIfDev('📤 Отправка запроса:', { url: urlString, body: { url } });
+            
             const response = await fetch(urlString, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({url: url})
+                body: JSON.stringify({ url: url })
+            });
+            
+            logIfDev('📥 Получен ответ:', { 
+                status: response.status, 
+                statusText: response.statusText,
+                ok: response.ok 
             });
             
             const result = await handleResponse(response);
+            logIfDev('✅ Успешный ответ:', result);
             return result;
+            
         } catch (error) {
-            errorLogIfDev('API Error:', error);
-            throw error;
+            errorLogIfDev('❌ API Error:', error);
+            // Убеждаемся, что ошибка - это строка
+            if (error instanceof Error) {
+                throw error;
+            } else {
+                throw new Error(String(error));
+            }
         }
     }
 
@@ -159,17 +219,12 @@ const API = (function() {
         }
     }
 
-    // Функция для проверки режима (может пригодиться в UI)
-    function isProduction() {
-        return isProdMode;
-    }
-
     return {
         shortenUrl,
         getLinkStats,
         getTopLinks,
         getSlugLengthConfig,
         getFrontendConfig,
-        isProduction
+        isProduction: () => isProdMode
     };
 })();

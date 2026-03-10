@@ -42,6 +42,26 @@ const UI = (function() {
         }
     }
 
+    // Функция для преобразования технических ошибок в понятные сообщения
+    function getUserFriendlyErrorMessage(error) {
+        const errorStr = String(error).toLowerCase();
+        
+        if (errorStr.includes('url scheme') || errorStr.includes('http') || errorStr.includes('https')) {
+            return 'URL должен начинаться с http:// или https://';
+        }
+        if (errorStr.includes('invalid') || errorStr.includes('корректн')) {
+            return 'Пожалуйста, введите корректный URL';
+        }
+        if (errorStr.includes('недоступн')) {
+            return 'Данная ссылка недоступна';
+        }
+        if (errorStr.includes('already') || errorStr.includes('уже существует')) {
+            return 'Эта ссылка уже была сокращена';
+        }
+        
+        return String(error);
+    }
+
     // Функция для инициализации элементов
     function initElements() {
         elements.form = document.getElementById('shortenForm');
@@ -70,37 +90,289 @@ const UI = (function() {
         elements.footerParagraph = document.querySelector('.footer p');
         elements.logoText = document.querySelector('.logo-text');
         elements.pageTitle = document.querySelector('title');
+        
+        // Добавляем контейнер для ошибок валидации URL
+        addUrlErrorContainer();
     }
 
-    // Обновление APP_NAME в интерфейсе
+    // Добавляем контейнер для ошибок под полем ввода URL
+    function addUrlErrorContainer() {
+        if (elements.urlInput && !document.getElementById('urlError')) {
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'urlError';
+            errorDiv.className = 'url-error-message';
+            errorDiv.style.display = 'none';
+            errorDiv.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <span></span>
+            `;
+            
+            // Вставляем после input-wrapper
+            const inputWrapper = elements.urlInput.closest('.input-wrapper');
+            if (inputWrapper) {
+                inputWrapper.appendChild(errorDiv);
+            }
+        }
+    }
+
+    // Показать ошибку URL
+    function showUrlError(message) {
+        const errorDiv = document.getElementById('urlError');
+        if (errorDiv) {
+            const span = errorDiv.querySelector('span');
+            if (span) {
+                span.textContent = typeof message === 'string' ? message : 'Ошибка валидации URL';
+            }
+            errorDiv.style.display = 'flex';
+            
+            if (elements.urlInput) {
+                elements.urlInput.classList.add('input-error');
+            }
+        }
+        
+        showToast(typeof message === 'string' ? message : 'Ошибка валидации URL', 'error');
+    }
+
+    // Скрыть ошибку URL
+    function hideUrlError() {
+        const errorDiv = document.getElementById('urlError');
+        if (errorDiv) {
+            errorDiv.style.display = 'none';
+        }
+        if (elements.urlInput) {
+            elements.urlInput.classList.remove('input-error');
+        }
+    }
+
+    // Индикатор очистки
+    let cleanIndicator = null;
+    let cleanIndicatorTimeout = null;
+    
+    function showCleanIndicator() {
+        if (cleanIndicator) {
+            cleanIndicator.remove();
+            clearTimeout(cleanIndicatorTimeout);
+        }
+        
+        cleanIndicator = document.createElement('div');
+        cleanIndicator.className = 'clean-indicator';
+        cleanIndicator.innerHTML = '<i class="fas fa-broom"></i>';
+        cleanIndicator.title = 'Ссылка автоматически очищена от пробелов и переносов';
+        
+        const inputGroup = elements.urlInput.closest('.input-group');
+        if (inputGroup) {
+            inputGroup.appendChild(cleanIndicator);
+            
+            cleanIndicatorTimeout = setTimeout(() => {
+                if (cleanIndicator) {
+                    cleanIndicator.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (cleanIndicator) {
+                            cleanIndicator.remove();
+                            cleanIndicator = null;
+                        }
+                    }, 300);
+                }
+            }, 2000);
+        }
+    }
+    
+    // Улучшенная функция cleanUrlValue
+    function cleanUrlValue(rawValue) {
+        if (!rawValue) return '';
+        
+        let cleaned = rawValue.trim();
+        cleaned = cleaned.replace(/[\s\r\n\t]+/g, '');
+        
+        if (!cleaned) return '';
+        
+        // Таблица исправлений распространенных ошибок
+        const fixes = [
+            { pattern: /^hp:\/\//, replacement: 'http://' },
+            { pattern: /^hptp:\/\//, replacement: 'http://' },
+            { pattern: /^hptt:\/\//, replacement: 'http://' },
+            { pattern: /^htp:\/\//, replacement: 'http://' },
+            { pattern: /^ttps:\/\//, replacement: 'https://' },
+            { pattern: /^ttp:\/\//, replacement: 'http://' },
+            { pattern: /^https:\/\/\//, replacement: 'https://' },
+            { pattern: /^http:\/\/\//, replacement: 'http://' },
+            { pattern: /^htts:\/\//, replacement: 'https://' },
+            { pattern: /^htp:\/\//, replacement: 'http://' }
+        ];
+        
+        // Применяем все исправления
+        for (const fix of fixes) {
+            cleaned = cleaned.replace(fix.pattern, fix.replacement);
+        }
+        
+        // Если нет протокола, добавляем https://
+        if (!cleaned.match(/^https?:\/\//i)) {
+            // Проверяем, похоже ли это на домен
+            if (cleaned.match(/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)) {
+                cleaned = 'https://' + cleaned;
+            }
+        }
+        
+        return cleaned;
+    }
+    
+    // Функция для очистки кастомного slug от пробелов
+    function cleanCustomSlugValue(rawValue) {
+        if (!rawValue) return '';
+        
+        // Удаляем пробелы и спецсимволы, оставляем только допустимые
+        let cleaned = rawValue.trim();
+        cleaned = cleaned.replace(/[\s\r\n\t]+/g, '');
+        
+        // Удаляем все недопустимые символы (оставляем только буквы, цифры, дефис и подчеркивание)
+        cleaned = cleaned.replace(/[^a-zA-Z0-9_-]/g, '');
+        
+        return cleaned;
+    }
+    
+    function setupUrlInputHandlers() {
+        if (!elements.urlInput) return;
+        
+        elements.urlInput.addEventListener('paste', function(e) {
+            e.preventDefault();
+            
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const cleaned = cleanUrlValue(paste);
+            
+            this.value = cleaned;
+            
+            if (cleaned !== paste) {
+                showCleanIndicator();
+            }
+            
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            logIfDev('📋 Вставка URL обработана:', { original: paste, cleaned: cleaned });
+        });
+        
+        elements.urlInput.addEventListener('blur', function() {
+            const currentValue = this.value;
+            const cleaned = cleanUrlValue(currentValue);
+            
+            if (cleaned !== currentValue) {
+                this.value = cleaned;
+                if (cleaned && cleaned !== currentValue) {
+                    showCleanIndicator();
+                }
+            }
+        });
+        
+        elements.urlInput.addEventListener('input', function() {
+            const currentValue = this.value;
+            
+            if (/[\s\r\n\t]/.test(currentValue)) {
+                const cleaned = currentValue.replace(/[\s\r\n\t]+/g, '');
+                this.value = cleaned;
+                
+                if (cleaned !== currentValue) {
+                    showCleanIndicator();
+                }
+            }
+            
+            hideUrlError();
+        });
+        
+        elements.urlInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const currentValue = this.value;
+                const cleaned = cleanUrlValue(currentValue);
+                
+                if (cleaned !== currentValue) {
+                    this.value = cleaned;
+                    showCleanIndicator();
+                }
+            }
+        });
+        
+        logIfDev('✅ Обработчики вставки URL настроены');
+    }
+
+    // НОВАЯ ФУНКЦИЯ: обработчики для поля кастомного slug
+    function setupCustomSlugHandlers() {
+        if (!elements.customSlug) return;
+        
+        elements.customSlug.addEventListener('paste', function(e) {
+            e.preventDefault();
+            
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const cleaned = cleanCustomSlugValue(paste);
+            
+            this.value = cleaned;
+            
+            // Триггерим события для валидации
+            this.dispatchEvent(new Event('input', { bubbles: true }));
+            
+            logIfDev('📋 Вставка custom slug обработана:', { original: paste, cleaned: cleaned });
+        });
+        
+        elements.customSlug.addEventListener('input', function() {
+            const currentValue = this.value;
+            
+            // Автоматически очищаем от пробелов при вводе
+            if (/[\s\r\n\t]/.test(currentValue)) {
+                const cleaned = currentValue.replace(/[\s\r\n\t]+/g, '');
+                this.value = cleaned;
+            }
+        });
+    }
+
+    function setupUrlInputSelection() {
+        if (!elements.urlInput) return;
+        
+        elements.urlInput.addEventListener('focus', function() {
+            this.select();
+        });
+        
+        elements.urlInput.addEventListener('mouseup', function(e) {
+            if (this.selectionStart === 0 && this.selectionEnd === this.value.length) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    // НОВАЯ ФУНКЦИЯ: выделение текста для custom slug
+    function setupCustomSlugSelection() {
+        if (!elements.customSlug) return;
+        
+        elements.customSlug.addEventListener('focus', function() {
+            this.select();
+        });
+        
+        elements.customSlug.addEventListener('mouseup', function(e) {
+            if (this.selectionStart === 0 && this.selectionEnd === this.value.length) {
+                e.preventDefault();
+            }
+        });
+    }
+
     function updateAppNameInUI(appName) {
         logIfDev(`🔄 Обновляем APP_NAME на: ${appName}`);
         
-        // Обновляем title страницы
         if (elements.pageTitle) {
             elements.pageTitle.textContent = `${appName} | Сервис сокращения ссылок`;
         }
         
-        // Обновляем логотип
         if (elements.logoText) {
             elements.logoText.innerHTML = appName;
         }
         
-        // Обновляем футер
         if (elements.footerParagraph) {
             const currentYear = new Date().getFullYear();
             elements.footerParagraph.innerHTML = `© ${currentYear} ${appName}. Все права защищены.`;
         }
     }
 
-    // Обновление placeholder'а
     function updatePlaceholder(exampleUrl) {
         if (elements.urlInput) {
             elements.urlInput.placeholder = exampleUrl;
         }
     }
 
-    // Загрузка конфигурации с бэкенда
     async function loadFrontendConfig() {
         try {
             logIfDev('🔄 Загрузка конфигурации с бэкенда...');
@@ -108,22 +380,15 @@ const UI = (function() {
             const config = await API.getFrontendConfig();
             
             if (config && config.app_name) {
-                // Устанавливаем режим продакшн
                 if (config.mode === 'PROD') {
                     state.isProdMode = true;
-                    // В продакшне очищаем консоль от предыдущих логов
-                    if (console.clear) {
-                        console.clear();
-                    }
                     logIfDev('🔒 Продакшн режим: логирование отключено');
                 }
                 
                 logIfDev('✅ Конфигурация получена:', config);
                 
-                // Обновляем состояние
                 state.appConfig = { ...state.appConfig, ...config };
                 
-                // Обновляем интерфейс
                 updateAppNameInUI(config.app_name);
                 updatePlaceholder(config.example_url || state.appConfig.example_url);
             } else {
@@ -138,7 +403,6 @@ const UI = (function() {
         }
     }
 
-    // Загрузка конфигурации длины слага
     async function loadSlugLengthConfig() {
         try {
             const result = await API.getSlugLengthConfig();
@@ -157,7 +421,6 @@ const UI = (function() {
         }
     }
 
-    // Обновление конфигурации слайдера
     function updateSliderConfig() {
         if (!elements.slugLength) return;
         
@@ -178,7 +441,6 @@ const UI = (function() {
         }
     }
 
-    // Функция для показа подсказки у поля
     function showFieldHint(container, message, type = 'warning') {
         if (!container) return;
         
@@ -269,17 +531,22 @@ const UI = (function() {
     }
 
     async function init() {
-        // Только один лог при инициализации, который будет виден в DEV режиме
         logIfDev('🚀 Инициализация UI...');
         
         initElements();
         initTheme();
         
-        // Сначала устанавливаем значения по умолчанию
+        // Добавляем обработчики для поля URL
+        setupUrlInputHandlers();
+        setupUrlInputSelection();
+        
+        // Добавляем обработчики для поля custom slug
+        setupCustomSlugHandlers();
+        setupCustomSlugSelection();
+        
         updateAppNameInUI(state.appConfig.app_name);
         updatePlaceholder(state.appConfig.example_url);
         
-        // Затем пытаемся загрузить конфигурацию с бэкенда
         await loadFrontendConfig();
         await loadSlugLengthConfig();
         
@@ -289,7 +556,6 @@ const UI = (function() {
             toggleFieldsState();
         }
         
-        // Финальный лог только в DEV
         if (!state.isProdMode) {
             logIfDev('✅ Инициализация завершена в режиме', state.appConfig.mode);
         }
@@ -376,13 +642,35 @@ const UI = (function() {
     async function handleFormSubmit(e) {
         e.preventDefault();
         
-        const url = elements.urlInput.value.trim();
-        if (!url) return;
+        const rawUrl = elements.urlInput.value.trim();
+        const url = cleanUrlValue(rawUrl);
         
+        if (url !== rawUrl) {
+            elements.urlInput.value = url;
+            if (rawUrl && url !== rawUrl) {
+                showCleanIndicator();
+            }
+        }
+        
+        if (!url) {
+            showUrlError('Пожалуйста, введите ссылку');
+            return;
+        }
+        
+        hideUrlError();
+        
+        // Проверяем наличие протокола перед отправкой
+        if (!url.match(/^https?:\/\//i)) {
+            showUrlError('URL должен начинаться с http:// или https://');
+            return;
+        }
+        
+        // Базовая валидация формата URL
         try {
             new URL(url);
-        } catch {
-            showToast('Пожалуйста, введите корректный URL', 'error');
+        } catch (error) {
+            console.error('URL validation error:', error);
+            showUrlError('Пожалуйста, введите корректный URL (например, https://example.com)');
             return;
         }
         
@@ -427,12 +715,20 @@ const UI = (function() {
                 handleSuccessResponse(result.data.data, url, 'Ссылка успешно сокращена!');
             } else if (result.status === 208) {
                 handleSuccessResponse(result.data.data, url, 'Ссылка уже существует!');
-            } else {
-                throw new Error(result.data.message || 'Ошибка при сокращении ссылки');
             }
             
         } catch (error) {
-            showToast(error.message, 'error');
+            errorLogIfDev('❌ Ошибка:', error);
+            
+            const errorMessage = getUserFriendlyErrorMessage(error.message || error);
+            
+            if (errorMessage.includes('недоступн') || 
+                errorMessage.includes('NOT_FOUND') || 
+                errorMessage.includes('404')) {
+                showUrlError(errorMessage);
+            } else {
+                showToast(errorMessage, 'error');
+            }
         } finally {
             setLoading(false);
         }

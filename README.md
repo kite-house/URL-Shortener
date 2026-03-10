@@ -49,124 +49,145 @@
    ```bash
    git clone https://github.com/kite-house/URL-Shortener.git
    cd URL-Shortener
-Настройте переменные окружения
-
-Скопируйте файл с примером конфигурации и отредактируйте его под себя:
-
+   
+2. **Настройте переменные окружения**
+    Скопируйте файл с примером конфигурации и отредактируйте его под себя:
     ```bash
     cp .env.example .env
+    ```
     Минимально необходимые настройки:
-
     ```ini
-    MODE="DEV"
+    # ==================================================
+    # ⚙️ REQUIRED ENVIRONMENT VARIABLES
+    # ==================================================
     
-    # PostgreSQL
-    DB_USER="postgres"
-    DB_PASS="postgres"
-    DB_HOST="backend_db"
-    DB_PORT="5432"
-    DB_NAME="url_shortener"
-
-    # Redis
-    REDIS_HOST="cache"
-    REDIS_PORT="6379"
-    Запустите все сервисы
-
+    # 🚀 Application Mode
+    MODE="DEV"  # DEV, TEST, or PROD
+    BACKEND_PORT = "8000"
+    BACKEND_HOST = "0.0.0.0"
+    FRONTED_PORT = "80"
+    
+    
+    # ==================================================
+    # 🗄️ Database (PostgreSQL)
+    # ==================================================
+    DB_USER = "postgres"
+    DB_PASS = "postgres"
+    DB_HOST = "backend_db"
+    DB_PORT = "5432"
+    DB_NAME = "postgres_db"
+    
+    # ==================================================
+    # ⚡ Redis (Cache)
+    # ==================================================
+    REDIS_HOST = "cache"
+    REDIS_PORT = "6379" 
+    ```
+3. **Запустите все сервисы**
     ```bash
     docker compose up -d --build
-Проверьте работу
-
-Веб-интерфейс: http://localhost:8000
-
-Документация API (Swagger): http://localhost:8000/docs
+    ```
+4. **Проверьте работу**
+   * Веб-интерфейс: http://localhost:8000
+   * Документация API (Swagger): http://localhost:8000/docs
 
 ## 📖 Использование
-## 🌐 Веб-интерфейс
+### 🌐 Веб-интерфейс
 Главная страница сервиса предлагает интуитивно понятный интерфейс для работы со ссылками.
 
-Функция	Описание
-Сокращение ссылки	Вставьте длинную ссылку в поле ввода и нажмите кнопку "Сократить"
-Свой вариант ссылки	Введите желаемую часть короткой ссылки (например, my-link)
-Длина ссылки	Выберите длину генерируемой ссылки с помощью слайдера (от 3 до 10 символов)
-Копирование	Скопируйте полученную короткую ссылку одним кликом
-Темная тема	Переключайтесь между светлой и темной темой интерфейса
-🔗 Создание короткой ссылки через API
-Эндпоинт: POST /api/shorten
+| Функция | Описание |
+|-----------|------------|
+| **Сокращение ссылки** | Вставьте длинную ссылку в поле ввода и нажмите кнопку "Сократить" |
+| **Свой вариант ссылки** | Введите желаемую часть короткой ссылки (например, my-link) |
+| **Длина ссылки** | Выберите длину генерируемой ссылки с помощью слайдера (от 3 до 10 символов) |
+| **Копирование** |	Скопируйте полученную короткую ссылку одним кликом |
+| **Темная тема** | Переключайтесь между светлой и темной темой интерфейса |
 
-Параметры запроса:
+### 🔗 Создание короткой ссылки через API
+**Эндпоинт:** `POST /api/shorten`
 
-url (обязательный) — исходный длинный URL
+**Параметры запроса:**
 
-custom_slug (опционально) — желаемая кастомная часть
+`url` (обязательный) — исходный длинный URL
 
-length (опционально) — желаемая длина генерируемой части
+`custom_slug` (опционально) — желаемая кастомная часть
 
-Примеры запросов (cURL):
+`length` (опционально) — желаемая длина генерируемой части
 
-    ```bash
-    # Без дополнительных параметров
-    curl -X POST "http://localhost:8000/api/shorten" \
-      -H "Content-Type: application/json" \
-      -d '{"url": "https://example.com/very/long/url"}'
-    
-    # С кастомным slug
-    curl -X POST "http://localhost:8000/api/shorten?custom_slug=my-page" \
-      -H "Content-Type: application/json" \
-      -d '{"url": "https://example.com/very/long/url"}'
-    
-    # С указанием длины
-    curl -X POST "http://localhost:8000/api/shorten?length=5" \
-      -H "Content-Type: application/json" \
-      -d '{"url": "https://example.com/very/long/url"}'
-    Пример ответа:
-    
-    json
-    {
-      "status_code": 200,
-      "cached": true,
-      "message": "Ссылка успешно создана!",
-      "content": {
-        "slug": "my-page",
-        "short_url": "http://localhost:8000/api/my-page",
-        "long_url": "https://example.com/very/long/url"
-      }
+**Примеры запросов (cURL):**
+
+  ```bash
+  # Без дополнительных параметров
+  curl -X POST "http://localhost:8000/api/shorten" \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://example.com/very/long/url"}'
+  
+  # С кастомным slug
+  curl -X POST "http://localhost:8000/api/shorten?custom_slug=my-page" \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://example.com/very/long/url"}'
+  
+  # С указанием длины
+  curl -X POST "http://localhost:8000/api/shorten?length=5" \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://example.com/very/long/url"}'
+  ```
+**Пример ответа:**
+
+  ```json
+  {
+    "status_code": 200,
+    "cached": true,
+    "message": "Ссылка успешно создана!",
+    "content": {
+      "slug": "my-page",
+      "short_url": "http://localhost:8000/api/my-page",
+      "long_url": "https://example.com/very/long/url"
     }
+  }
+  ```
 
-## 🚦 Переход по короткой ссылке
-Просто откройте в браузере:
+### 🚦 Переход по короткой ссылке
+**Просто откройте в браузере:**
 http://localhost:8000/api/ваш_slug
+
 Вы будете автоматически перенаправлены на исходный URL.
 
-📊 Получение статистики
-Эндпоинт: GET /api/info/{slug}
+### 📊 Получение статистики
+Эндпоинт: GET `/api/info/{slug}`
     
-    ```bash
-    curl http://localhost:8000/api/info/my-page
-    Пример ответа:
-    
-    json
-    {
-      "status_code": 200,
-      "content": {
-        "success": true,
-        "message": "Успешно найден!",
-        "data": {
-          "slug": "my-page",
-          "short_url": "http://localhost:8000/api/my-page",
-          "long_url": "https://example.com",
-          "count_clicks": 13,
-          "date_created": "10.03.2026"
-        }
+  ```bash
+  curl http://localhost:8000/api/info/my-page
+  ```
+
+**Пример ответа:**
+
+  ```json
+  {
+    "status_code": 200,
+    "content": {
+      "success": true,
+      "message": "Успешно найден!",
+      "data": {
+        "slug": "my-page",
+        "short_url": "http://localhost:8000/api/my-page",
+        "long_url": "https://example.com",
+        "count_clicks": 13,
+        "date_created": "10.03.2026"
       }
     }
+  }
+  ```
     
 ## 🧪 Тестирование
 Запуск тестов внутри Docker-контейнера:
 
     ```bash
     docker compose exec backend pytest -v
+    ```
 
 ## 📁 Структура проекта
+```
 URL-Shortener/
 ├── .env.example                    # Пример конфигурации
 ├── docker-compose.yml              # Оркестрация всех сервисов
@@ -212,7 +233,7 @@ URL-Shortener/
     │   └── ui.js                            # Модуль для управления интерфейсом
     ├── Dockerfile
     └── index.html                           # Главная страница
-    
+```
 ## 🎨 Особенности интерфейса
 
 * Анимированный градиентный фон с плавающими сферами
@@ -244,6 +265,7 @@ URL-Shortener/
 Проект распространяется под лицензией MIT. Подробности в файле LICENSE.
 
 ## 📬 Контакты
+
 Автор: **kite-house**
 
 GitHub: [@kite-house](https://github.com/kite-house)

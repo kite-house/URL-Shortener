@@ -7,4 +7,3 @@ __pycache__
 test-reports
 .coverage
 htmlcov
-.env.test

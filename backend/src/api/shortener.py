@@ -10,7 +10,7 @@ from src.services.slug_generator import create_url
 from src.services.url_checker import is_url_available
 from src.db import crud 
 from src.api.dependencies import SessionDep, SettingsDep, RedisDep
-from src.core.exceptions import URLAlreadyRegistered
+from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
 
 router = APIRouter(prefix = '/api')
 
@@ -54,29 +54,12 @@ async def shorten(session: SessionDep,
 
     try:
         await crud.write_url(slug = slug, long_url = str(long_url.url), session = session)
-    except URLAlreadyRegistered:
-        try:
-            await crud.get_url(long_url = str(long_url.url), session = session)
-        except NoResultFound:
-            return JSONResponse(
-                status_code = status.HTTP_208_ALREADY_REPORTED,
-                content = {
-                    "success" : True,
-                    "message" : "Короткая ссылка уже зарегистрирована в сервисе!",
-                    "data" : {
-                        "slug" : slug,
-                        "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
-                        "long_url" : str(long_url.url)
-                    }
-
-                }
-            )
-        
+    except (URLAlreadyRegistered, SlugAlreadyRegistered) as error:
         return JSONResponse(
-            status_code = status.HTTP_208_ALREADY_REPORTED,
+            status_code = status.HTTP_409_CONFLICT,
             content = {
                 "success" : True,
-                "message" : "Ссылка уже зарегистрирована в сервисе!",
+                "message" : str(error),
                 "data" : {
                     "slug" : slug,
                     "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
@@ -90,7 +73,7 @@ async def shorten(session: SessionDep,
         try:
             await redis.setex(slug, 86400, str(long_url.url))
         except Exception as e:
-            pass
+            print(e)
 
     return JSONResponse(
         status_code = status.HTTP_201_CREATED,

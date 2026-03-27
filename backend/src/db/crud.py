@@ -2,9 +2,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, update, exc
 from datetime import datetime
+import re
 
 from src.db.models import Url 
-from src.core.exceptions import URLAlreadyRegistered
+from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
 
 async def write_url(slug: str, long_url: str, session: AsyncSession) -> None:
     """Записать обьект ссылки в базу данных"""
@@ -17,9 +18,21 @@ async def write_url(slug: str, long_url: str, session: AsyncSession) -> None:
     )
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as error:
         await session.rollback()
-        raise URLAlreadyRegistered
+
+        try:
+            field = re.search(r'Key \((.*?)\)', str(error.orig)).group(1)
+        except AttributeError:
+            raise error
+
+        if field == "slug":
+            raise SlugAlreadyRegistered
+        
+        if field == "long_url":
+            raise URLAlreadyRegistered
+        
+        raise error
 
 async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSession) -> Url:
     """Получить обьект ссылки по слагу или по длинной ссылке"""

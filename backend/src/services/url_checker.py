@@ -1,18 +1,18 @@
-from typing import Optional, Tuple
+from urllib.parse import urlparse
+import asyncio
 
-import aiohttp
-
-async def is_url_available(url: str, timeout: int = 5) -> Tuple[bool, Optional[str]]:
+async def is_url_available(url: str, timeout: int = 10) -> bool:
+    """ Проверка доступности URL по DNS """
+    
     try:
-        timeout_obj = aiohttp.ClientTimeout(total=timeout)
+        parsed = urlparse(url)
+        if not parsed.hostname:
+            return False
+
+        loop = asyncio.get_event_loop()
+        await loop.getaddrinfo(parsed.hostname, None)
         
-        async with aiohttp.ClientSession(timeout=timeout_obj) as session:
-            async with session.head(url, allow_redirects=True, ssl=False) as response:
-                if response.status < 400:
-                    return True
-                
-                else:
-                    return False
-                    
+        return True
+        
     except Exception:
         return False

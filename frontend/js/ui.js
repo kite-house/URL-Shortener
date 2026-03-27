@@ -10,7 +10,7 @@ const UI = (function() {
             version: "1.0.0",
             mode: "DEV",
             example_url: "https://example.com/very/long/url",
-            api_base_url: "http://localhost:8000/api"
+            api_base_url: "http://${BACKEND_HOST}:${BACKEND_PORT}/api'"
         },
         slugLengthConfig: {
             min: 3,
@@ -713,7 +713,7 @@ const UI = (function() {
             
             if (result.status === 201) {
                 handleSuccessResponse(result.data.data, url, 'Ссылка успешно сокращена!');
-            } else if (result.status === 208) {
+            } else if (result.status === 409) {
                 handleSuccessResponse(result.data.data, url, 'Ссылка уже существует!');
             }
             

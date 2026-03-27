@@ -1,6 +1,6 @@
 const API = (function() {
     const API_CONFIG = {
-        baseURL: 'http://localhost:8000/api',
+        baseURL: 'http://${BACKEND_HOST}:${BACKEND_PORT}/api',
         endpoints: {
             shorten: '/shorten',
             info: '/info',

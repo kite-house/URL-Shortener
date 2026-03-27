@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     REDIS_HOST: str
     REDIS_PORT: int 
+    REDIS_PASSWORD: str
 
     APP_NAME: str = "URL-Shortener"
     VERSION: str = "1.0.0"

@@ -4,9 +4,12 @@ services:
     container_name: frontend
     restart: always
     ports:
-      - "${FRONTED_PORT}:${FRONTED_PORT}" 
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}" 
     depends_on:
       - backend
+    env_file:
+      - .env
+
     volumes:
       - ./frontend/index.html:/usr/share/nginx/html/index.html
       - ./frontend/assets:/usr/share/nginx/html/assets
@@ -14,6 +17,7 @@ services:
       - ./frontend/js:/usr/share/nginx/html/js
 
   backend:
+    container_name: backend
     build: ./backend
     command: uvicorn src.main:app --host ${BACKEND_HOST} --port ${BACKEND_PORT} --reload
     volumes:
@@ -25,12 +29,12 @@ services:
     depends_on:
       cache:
         condition: service_started
-      backend_db:
+      postgres_db:
         condition: service_healthy
 
-  backend_db:
-    image: postgres:14-alpine
-    container_name: backend_db
+  postgres_db:
+    image: postgres:17.4-alpine
+    container_name: postgres_db
     restart: always
     environment:
       POSTGRES_USER: ${DB_USER}
@@ -48,8 +52,19 @@ services:
       start_period: 10s 
   
   cache:
-    image: redis:7-alpine
+    container_name: cache
+    image: redis:7.4-alpine
     restart: always
+    command: >
+      sh -c "apk upgrade --no-cache && redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  redis_data:

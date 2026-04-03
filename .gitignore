@@ -9,3 +9,4 @@ test-reports
 htmlcov
 logs/
 *.log
+tasks.txt

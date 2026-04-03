@@ -143,7 +143,7 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
                 raise HTTPException(status_code = status.HTTP_410_GONE, detail = "Срок действия ссылки истек!")
             short_url = db_url.long_url
         except NoResultFound:
-            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена! Создайте ссылку!')
+            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
         
     await crud.increase_count_clicks(slug, session)
     return RedirectResponse(short_url, status_code = status.HTTP_302_FOUND)

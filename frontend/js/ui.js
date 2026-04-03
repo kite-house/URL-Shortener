@@ -1,6 +1,5 @@
 // ui.js - Модуль для работы с интерфейсом
 const UI = (function() {
-    // Состояние приложения
     const state = {
         currentSlug: null,
         isLoading: false,
@@ -20,10 +19,8 @@ const UI = (function() {
         isProdMode: false
     };
 
-    // DOM элементы
     const elements = {};
 
-    // Функции для условного логирования
     function logIfDev(...args) {
         if (!state.isProdMode) {
             console.log(...args);
@@ -42,11 +39,10 @@ const UI = (function() {
         }
     }
 
-    // Функция для преобразования технических ошибок в понятные сообщения
     function getUserFriendlyErrorMessage(error) {
         const errorStr = String(error).toLowerCase();
         
-        if (errorStr.includes('url scheme') || errorStr.includes('http') || errorStr.includes('https')) {
+        if (errorStr.includes('url scheme') || errorStr.includes('http://') || errorStr.includes('https://')) {
             return 'URL должен начинаться с http:// или https://';
         }
         if (errorStr.includes('invalid') || errorStr.includes('корректн')) {
@@ -62,7 +58,6 @@ const UI = (function() {
         return String(error);
     }
 
-    // Функция для инициализации элементов
     function initElements() {
         elements.form = document.getElementById('shortenForm');
         elements.urlInput = document.getElementById('urlInput');
@@ -71,43 +66,33 @@ const UI = (function() {
         elements.closeResultBtn = document.getElementById('closeResultBtn');
         elements.shortUrl = document.getElementById('shortUrl');
         elements.originalUrl = document.getElementById('originalUrl');
-        elements.themeToggle = document.querySelector('.theme-toggle');
         elements.toastContainer = document.getElementById('toastContainer');
-        
-        // Элементы дополнительных настроек
         elements.customSlug = document.getElementById('customSlug');
         elements.slugLength = document.getElementById('slugLength');
         elements.lengthValue = document.getElementById('lengthValue');
         elements.toggleAdvancedBtn = document.getElementById('toggleAdvancedBtn');
         elements.advancedSettings = document.getElementById('advancedSettings');
         elements.sliderMarkers = document.querySelector('.slider-markers');
-        
-        // Элементы для отображения статуса полей
+        elements.ttlDays = document.getElementById('ttlDays');
         elements.slugLengthContainer = document.querySelector('.setting-item:has(#slugLength)');
         elements.customSlugContainer = document.querySelector('.setting-item:has(#customSlug)');
-        
-        // Элементы для динамических данных
         elements.footerParagraph = document.querySelector('.footer p');
         elements.logoText = document.querySelector('.logo-text');
         elements.pageTitle = document.querySelector('title');
+        elements.expiryInfo = document.getElementById('expiryInfo');
+        elements.expiryText = document.getElementById('expiryText');
         
-        // Добавляем контейнер для ошибок валидации URL
         addUrlErrorContainer();
     }
 
-    // Добавляем контейнер для ошибок под полем ввода URL
     function addUrlErrorContainer() {
         if (elements.urlInput && !document.getElementById('urlError')) {
             const errorDiv = document.createElement('div');
             errorDiv.id = 'urlError';
             errorDiv.className = 'url-error-message';
             errorDiv.style.display = 'none';
-            errorDiv.innerHTML = `
-                <i class="fas fa-exclamation-circle"></i>
-                <span></span>
-            `;
+            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i><span></span>`;
             
-            // Вставляем после input-wrapper
             const inputWrapper = elements.urlInput.closest('.input-wrapper');
             if (inputWrapper) {
                 inputWrapper.appendChild(errorDiv);
@@ -115,36 +100,23 @@ const UI = (function() {
         }
     }
 
-    // Показать ошибку URL
     function showUrlError(message) {
         const errorDiv = document.getElementById('urlError');
         if (errorDiv) {
             const span = errorDiv.querySelector('span');
-            if (span) {
-                span.textContent = typeof message === 'string' ? message : 'Ошибка валидации URL';
-            }
+            if (span) span.textContent = typeof message === 'string' ? message : 'Ошибка валидации URL';
             errorDiv.style.display = 'flex';
-            
-            if (elements.urlInput) {
-                elements.urlInput.classList.add('input-error');
-            }
+            if (elements.urlInput) elements.urlInput.classList.add('input-error');
         }
-        
         showToast(typeof message === 'string' ? message : 'Ошибка валидации URL', 'error');
     }
 
-    // Скрыть ошибку URL
     function hideUrlError() {
         const errorDiv = document.getElementById('urlError');
-        if (errorDiv) {
-            errorDiv.style.display = 'none';
-        }
-        if (elements.urlInput) {
-            elements.urlInput.classList.remove('input-error');
-        }
+        if (errorDiv) errorDiv.style.display = 'none';
+        if (elements.urlInput) elements.urlInput.classList.remove('input-error');
     }
 
-    // Индикатор очистки
     let cleanIndicator = null;
     let cleanIndicatorTimeout = null;
     
@@ -162,31 +134,24 @@ const UI = (function() {
         const inputGroup = elements.urlInput.closest('.input-group');
         if (inputGroup) {
             inputGroup.appendChild(cleanIndicator);
-            
             cleanIndicatorTimeout = setTimeout(() => {
                 if (cleanIndicator) {
                     cleanIndicator.classList.add('fade-out');
                     setTimeout(() => {
-                        if (cleanIndicator) {
-                            cleanIndicator.remove();
-                            cleanIndicator = null;
-                        }
+                        if (cleanIndicator) cleanIndicator.remove();
                     }, 300);
                 }
             }, 2000);
         }
     }
     
-    // Улучшенная функция cleanUrlValue
     function cleanUrlValue(rawValue) {
         if (!rawValue) return '';
         
         let cleaned = rawValue.trim();
         cleaned = cleaned.replace(/[\s\r\n\t]+/g, '');
-        
         if (!cleaned) return '';
         
-        // Таблица исправлений распространенных ошибок
         const fixes = [
             { pattern: /^hp:\/\//, replacement: 'http://' },
             { pattern: /^hptp:\/\//, replacement: 'http://' },
@@ -195,19 +160,14 @@ const UI = (function() {
             { pattern: /^ttps:\/\//, replacement: 'https://' },
             { pattern: /^ttp:\/\//, replacement: 'http://' },
             { pattern: /^https:\/\/\//, replacement: 'https://' },
-            { pattern: /^http:\/\/\//, replacement: 'http://' },
-            { pattern: /^htts:\/\//, replacement: 'https://' },
-            { pattern: /^htp:\/\//, replacement: 'http://' }
+            { pattern: /^http:\/\/\//, replacement: 'http://' }
         ];
         
-        // Применяем все исправления
         for (const fix of fixes) {
             cleaned = cleaned.replace(fix.pattern, fix.replacement);
         }
         
-        // Если нет протокола, добавляем https://
         if (!cleaned.match(/^https?:\/\//i)) {
-            // Проверяем, похоже ли это на домен
             if (cleaned.match(/^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)) {
                 cleaned = 'https://' + cleaned;
             }
@@ -216,17 +176,11 @@ const UI = (function() {
         return cleaned;
     }
     
-    // Функция для очистки кастомного slug от пробелов
     function cleanCustomSlugValue(rawValue) {
         if (!rawValue) return '';
-        
-        // Удаляем пробелы и спецсимволы, оставляем только допустимые
         let cleaned = rawValue.trim();
         cleaned = cleaned.replace(/[\s\r\n\t]+/g, '');
-        
-        // Удаляем все недопустимые символы (оставляем только буквы, цифры, дефис и подчеркивание)
         cleaned = cleaned.replace(/[^a-zA-Z0-9_-]/g, '');
-        
         return cleaned;
     }
     
@@ -235,185 +189,92 @@ const UI = (function() {
         
         elements.urlInput.addEventListener('paste', function(e) {
             e.preventDefault();
-            
             const paste = (e.clipboardData || window.clipboardData).getData('text');
             const cleaned = cleanUrlValue(paste);
-            
             this.value = cleaned;
-            
-            if (cleaned !== paste) {
-                showCleanIndicator();
-            }
-            
+            if (cleaned !== paste) showCleanIndicator();
             this.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            logIfDev('📋 Вставка URL обработана:', { original: paste, cleaned: cleaned });
         });
         
         elements.urlInput.addEventListener('blur', function() {
             const currentValue = this.value;
             const cleaned = cleanUrlValue(currentValue);
-            
             if (cleaned !== currentValue) {
                 this.value = cleaned;
-                if (cleaned && cleaned !== currentValue) {
-                    showCleanIndicator();
-                }
+                if (cleaned && cleaned !== currentValue) showCleanIndicator();
             }
         });
         
         elements.urlInput.addEventListener('input', function() {
             const currentValue = this.value;
-            
             if (/[\s\r\n\t]/.test(currentValue)) {
                 const cleaned = currentValue.replace(/[\s\r\n\t]+/g, '');
                 this.value = cleaned;
-                
-                if (cleaned !== currentValue) {
-                    showCleanIndicator();
-                }
+                if (cleaned !== currentValue) showCleanIndicator();
             }
-            
             hideUrlError();
         });
-        
-        elements.urlInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                const currentValue = this.value;
-                const cleaned = cleanUrlValue(currentValue);
-                
-                if (cleaned !== currentValue) {
-                    this.value = cleaned;
-                    showCleanIndicator();
-                }
-            }
-        });
-        
-        logIfDev('✅ Обработчики вставки URL настроены');
     }
 
-    // НОВАЯ ФУНКЦИЯ: обработчики для поля кастомного slug
     function setupCustomSlugHandlers() {
         if (!elements.customSlug) return;
         
         elements.customSlug.addEventListener('paste', function(e) {
             e.preventDefault();
-            
             const paste = (e.clipboardData || window.clipboardData).getData('text');
             const cleaned = cleanCustomSlugValue(paste);
-            
             this.value = cleaned;
-            
-            // Триггерим события для валидации
             this.dispatchEvent(new Event('input', { bubbles: true }));
-            
-            logIfDev('📋 Вставка custom slug обработана:', { original: paste, cleaned: cleaned });
         });
         
         elements.customSlug.addEventListener('input', function() {
             const currentValue = this.value;
-            
-            // Автоматически очищаем от пробелов при вводе
             if (/[\s\r\n\t]/.test(currentValue)) {
-                const cleaned = currentValue.replace(/[\s\r\n\t]+/g, '');
-                this.value = cleaned;
+                this.value = currentValue.replace(/[\s\r\n\t]+/g, '');
             }
         });
     }
 
     function setupUrlInputSelection() {
         if (!elements.urlInput) return;
-        
-        elements.urlInput.addEventListener('focus', function() {
-            this.select();
-        });
-        
-        elements.urlInput.addEventListener('mouseup', function(e) {
-            if (this.selectionStart === 0 && this.selectionEnd === this.value.length) {
-                e.preventDefault();
-            }
-        });
-    }
-
-    // НОВАЯ ФУНКЦИЯ: выделение текста для custom slug
-    function setupCustomSlugSelection() {
-        if (!elements.customSlug) return;
-        
-        elements.customSlug.addEventListener('focus', function() {
-            this.select();
-        });
-        
-        elements.customSlug.addEventListener('mouseup', function(e) {
-            if (this.selectionStart === 0 && this.selectionEnd === this.value.length) {
-                e.preventDefault();
-            }
-        });
+        elements.urlInput.addEventListener('focus', function() { this.select(); });
     }
 
     function updateAppNameInUI(appName) {
-        logIfDev(`🔄 Обновляем APP_NAME на: ${appName}`);
-        
-        if (elements.pageTitle) {
-            elements.pageTitle.textContent = `${appName} | Сервис сокращения ссылок`;
-        }
-        
-        if (elements.logoText) {
-            elements.logoText.innerHTML = appName;
-        }
-        
+        if (elements.pageTitle) elements.pageTitle.textContent = `${appName} | Сервис сокращения ссылок`;
+        if (elements.logoText) elements.logoText.innerHTML = appName;
         if (elements.footerParagraph) {
-            const currentYear = new Date().getFullYear();
-            elements.footerParagraph.innerHTML = `© ${currentYear} ${appName}. Все права защищены.`;
+            elements.footerParagraph.innerHTML = `© ${new Date().getFullYear()} ${appName}. Все права защищены.`;
         }
     }
 
     function updatePlaceholder(exampleUrl) {
-        if (elements.urlInput) {
-            elements.urlInput.placeholder = exampleUrl;
-        }
+        if (elements.urlInput) elements.urlInput.placeholder = exampleUrl;
     }
 
     async function loadFrontendConfig() {
         try {
-            logIfDev('🔄 Загрузка конфигурации с бэкенда...');
-            
             const config = await API.getFrontendConfig();
-            
             if (config && config.app_name) {
-                if (config.mode === 'PROD') {
-                    state.isProdMode = true;
-                    logIfDev('🔒 Продакшн режим: логирование отключено');
-                }
-                
-                logIfDev('✅ Конфигурация получена:', config);
-                
+                if (config.mode === 'PROD') state.isProdMode = true;
                 state.appConfig = { ...state.appConfig, ...config };
-                
                 updateAppNameInUI(config.app_name);
                 updatePlaceholder(config.example_url || state.appConfig.example_url);
-            } else {
-                warnLogIfDev('⚠️ Конфигурация не получена, используем значения по умолчанию');
-                updateAppNameInUI(state.appConfig.app_name);
-                updatePlaceholder(state.appConfig.example_url);
             }
         } catch (error) {
             errorLogIfDev('❌ Ошибка загрузки конфигурации:', error);
-            updateAppNameInUI(state.appConfig.app_name);
-            updatePlaceholder(state.appConfig.example_url);
         }
     }
 
     async function loadSlugLengthConfig() {
         try {
             const result = await API.getSlugLengthConfig();
-            
             if (result.data) {
                 state.slugLengthConfig = {
                     min: result.data.slug_min_length || 3,
                     max: result.data.slug_max_length || 10,
                     default: Math.floor((result.data.slug_min_length + result.data.slug_max_length) / 2) || 6
                 };
-                
                 updateSliderConfig();
             }
         } catch (error) {
@@ -423,54 +284,35 @@ const UI = (function() {
 
     function updateSliderConfig() {
         if (!elements.slugLength) return;
-        
         const { min, max, default: defaultValue } = state.slugLengthConfig;
-        
         elements.slugLength.min = min;
         elements.slugLength.max = max;
         elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
-        
         updateLengthDisplay();
-        
         if (elements.sliderMarkers) {
-            elements.sliderMarkers.innerHTML = `
-                <span>${min}</span>
-                <span>${Math.floor((min + max) / 2)}</span>
-                <span>${max}</span>
-            `;
+            elements.sliderMarkers.innerHTML = `<span>${min}</span><span>${Math.floor((min + max) / 2)}</span><span>${max}</span>`;
         }
     }
 
     function showFieldHint(container, message, type = 'warning') {
         if (!container) return;
-        
         hideFieldHint(container);
-        
         const hint = document.createElement('div');
         hint.className = `field-hint field-hint-${type}`;
-        hint.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        `;
+        hint.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${message}</span>`;
         container.appendChild(hint);
     }
 
     function hideFieldHint(container) {
         if (!container) return;
         const oldHint = container.querySelector('.field-hint');
-        if (oldHint) {
-            oldHint.remove();
-        }
+        if (oldHint) oldHint.remove();
     }
 
     function toggleFieldsState() {
         if (!elements.customSlug || !elements.slugLength) return;
-        
-        const customSlugValue = elements.customSlug.value.trim();
-        const isCustomSlugFilled = customSlugValue !== '';
-        
+        const isCustomSlugFilled = elements.customSlug.value.trim() !== '';
         elements.slugLength.disabled = isCustomSlugFilled;
-        
         if (isCustomSlugFilled) {
             elements.slugLength.classList.add('disabled');
             elements.lengthValue.classList.add('disabled');
@@ -488,28 +330,20 @@ const UI = (function() {
         const slug = elements.customSlug.value;
         const { min, max } = state.slugLengthConfig;
         const pattern = /^[a-zA-Z0-9_-]*$/;
-        
         hideFieldHint(elements.customSlugContainer);
         
         if (slug && !pattern.test(slug)) {
-            elements.customSlug.setCustomValidity('Только латинские буквы, цифры, дефис и подчеркивание');
             elements.customSlug.classList.add('invalid');
             showFieldHint(elements.customSlugContainer, 'Только латинские буквы, цифры, дефис и подчеркивание', 'error');
         } else if (slug && slug.length < min) {
-            elements.customSlug.setCustomValidity(`Минимум ${min} символа(ов)`);
             elements.customSlug.classList.add('invalid');
             showFieldHint(elements.customSlugContainer, `Минимальная длина: ${min} символа(ов)`, 'error');
         } else if (slug && slug.length > max) {
-            elements.customSlug.setCustomValidity(`Максимум ${max} символов`);
             elements.customSlug.classList.add('invalid');
             showFieldHint(elements.customSlugContainer, `Максимальная длина: ${max} символов`, 'error');
         } else {
-            elements.customSlug.setCustomValidity('');
             elements.customSlug.classList.remove('invalid');
-            
-            if (slug) {
-                showFieldHint(elements.customSlugContainer, '✓ Корректный формат', 'success');
-            }
+            if (slug) showFieldHint(elements.customSlugContainer, '✓ Корректный формат', 'success');
         }
     }
 
@@ -520,9 +354,7 @@ const UI = (function() {
 
     function closeResult() {
         if (!elements.resultCard) return;
-        
         elements.resultCard.classList.add('hiding');
-        
         setTimeout(() => {
             elements.resultCard.style.display = 'none';
             elements.resultCard.classList.remove('hiding');
@@ -530,54 +362,10 @@ const UI = (function() {
         }, 300);
     }
 
-    async function init() {
-        logIfDev('🚀 Инициализация UI...');
-        
-        initElements();
-        initTheme();
-        
-        // Добавляем обработчики для поля URL
-        setupUrlInputHandlers();
-        setupUrlInputSelection();
-        
-        // Добавляем обработчики для поля custom slug
-        setupCustomSlugHandlers();
-        setupCustomSlugSelection();
-        
-        updateAppNameInUI(state.appConfig.app_name);
-        updatePlaceholder(state.appConfig.example_url);
-        
-        await loadFrontendConfig();
-        await loadSlugLengthConfig();
-        
-        setupEventListeners();
-        
-        if (elements.customSlug) {
-            toggleFieldsState();
-        }
-        
-        if (!state.isProdMode) {
-            logIfDev('✅ Инициализация завершена в режиме', state.appConfig.mode);
-        }
-    }
-
     function setupEventListeners() {
-        if (elements.form) {
-            elements.form.addEventListener('submit', handleFormSubmit);
-        }
-        
-        if (elements.themeToggle) {
-            elements.themeToggle.addEventListener('click', toggleTheme);
-        }
-        
-        if (elements.slugLength) {
-            elements.slugLength.addEventListener('input', updateLengthDisplay);
-        }
-        
-        if (elements.customSlug) {
-            elements.customSlug.addEventListener('input', handleCustomSlugChange);
-        }
-        
+        if (elements.form) elements.form.addEventListener('submit', handleFormSubmit);
+        if (elements.slugLength) elements.slugLength.addEventListener('input', updateLengthDisplay);
+        if (elements.customSlug) elements.customSlug.addEventListener('input', handleCustomSlugChange);
         if (elements.toggleAdvancedBtn) {
             elements.toggleAdvancedBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -585,32 +373,28 @@ const UI = (function() {
                 toggleAdvancedSettings();
             });
         }
-        
-        if (elements.closeResultBtn) {
-            elements.closeResultBtn.addEventListener('click', closeResult);
-        }
-        
+        if (elements.closeResultBtn) elements.closeResultBtn.addEventListener('click', closeResult);
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && elements.resultCard.style.display === 'block') {
-                closeResult();
-            }
+            if (e.key === 'Escape' && elements.resultCard.style.display === 'block') closeResult();
         });
     }
 
     function toggleAdvancedSettings() {
         if (!elements.advancedSettings) return;
-        
         state.advancedOpen = !state.advancedOpen;
-        
         if (state.advancedOpen) {
             elements.advancedSettings.style.display = 'block';
             elements.toggleAdvancedBtn.classList.add('active');
-            elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(90deg)';
+            if (elements.toggleAdvancedBtn.querySelector('i')) {
+                elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(90deg)';
+            }
             toggleFieldsState();
         } else {
             elements.advancedSettings.style.display = 'none';
             elements.toggleAdvancedBtn.classList.remove('active');
-            elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(0deg)';
+            if (elements.toggleAdvancedBtn.querySelector('i')) {
+                elements.toggleAdvancedBtn.querySelector('i').style.transform = 'rotate(0deg)';
+            }
             resetAdvancedFields();
         }
     }
@@ -631,6 +415,7 @@ const UI = (function() {
             hideFieldHint(elements.slugLengthContainer);
             updateLengthDisplay();
         }
+        if (elements.ttlDays) elements.ttlDays.value = '';
     }
 
     function updateLengthDisplay() {
@@ -647,9 +432,7 @@ const UI = (function() {
         
         if (url !== rawUrl) {
             elements.urlInput.value = url;
-            if (rawUrl && url !== rawUrl) {
-                showCleanIndicator();
-            }
+            if (rawUrl && url !== rawUrl) showCleanIndicator();
         }
         
         if (!url) {
@@ -659,78 +442,58 @@ const UI = (function() {
         
         hideUrlError();
         
-        // Проверяем наличие протокола перед отправкой
         if (!url.match(/^https?:\/\//i)) {
             showUrlError('URL должен начинаться с http:// или https://');
             return;
         }
         
-        // Базовая валидация формата URL
         try {
             new URL(url);
         } catch (error) {
-            console.error('URL validation error:', error);
-            showUrlError('Пожалуйста, введите корректный URL (например, https://example.com)');
+            showUrlError('Пожалуйста, введите корректный URL');
             return;
         }
         
         let customSlug = elements.customSlug ? elements.customSlug.value.trim() : null;
-        let length = elements.slugLength ? parseInt(elements.slugLength.value) : null;
+        
+        let length = null;
+        if (elements.slugLength && elements.slugLength.value !== '6') {
+            length = parseInt(elements.slugLength.value);
+        }
+        
+        let ttlDays = elements.ttlDays ? elements.ttlDays.value : null;
         
         if (customSlug) {
             const { min, max } = state.slugLengthConfig;
             const pattern = /^[a-zA-Z0-9_-]+$/;
-            
             if (!pattern.test(customSlug)) {
                 showToast('Кастомная ссылка содержит недопустимые символы', 'error');
                 return;
             }
-            
             if (customSlug.length < min) {
                 showToast(`Кастомная ссылка должна быть не короче ${min} символов`, 'error');
                 return;
             }
-            
             if (customSlug.length > max) {
                 showToast(`Кастомная ссылка должна быть не длиннее ${max} символов`, 'error');
                 return;
             }
-            
             length = null;
-        } else {
-            if (length !== null) {
-                const { min, max } = state.slugLengthConfig;
-                if (isNaN(length) || length < min || length > max) {
-                    length = state.slugLengthConfig.default;
-                }
-            }
         }
         
         setLoading(true);
         
         try {
-            const result = await API.shortenUrl(url, customSlug, length);
+            const result = await API.shortenUrl(url, customSlug, length, ttlDays);
             
             if (result.success) {
-                // Показываем сообщение в зависимости от того, новая ссылка или существующая
-                if (!result.isNew) {
-                    showToast(result.message || 'Ссылка уже существует!', 'info');
-                } else {
-                    showToast(result.message || 'Ссылка успешно сокращена!', 'success');
-                }
-                
-                // Отображаем результат (и для новых, и для существующих ссылок)
-                handleSuccessResponse(result.data, url, result.message);
+                showToast(result.message || (result.isNew ? 'Ссылка успешно сокращена!' : 'Ссылка уже существует!'), 
+                         result.isNew ? 'success' : 'info');
+                handleSuccessResponse(result.data, url);
             }
-            
         } catch (error) {
-            errorLogIfDev('❌ Ошибка:', error);
-            
             const errorMessage = getUserFriendlyErrorMessage(error.message || error);
-            
-            if (errorMessage.includes('недоступн') || 
-                errorMessage.includes('NOT_FOUND') || 
-                errorMessage.includes('404')) {
+            if (errorMessage.includes('недоступн') || errorMessage.includes('404')) {
                 showUrlError(errorMessage);
             } else {
                 showToast(errorMessage, 'error');
@@ -740,10 +503,18 @@ const UI = (function() {
         }
     }
 
-    function handleSuccessResponse(responseData, originalUrl, message) {
+    function handleSuccessResponse(responseData, originalUrl) {
         let displayUrl = responseData.short_url;
-        if (displayUrl.includes('localhost')) {
-            displayUrl = displayUrl.replace('localhost', window.location.hostname);
+        
+        if (displayUrl.includes('localhost:8000')) {
+            displayUrl = displayUrl.replace('localhost:8000', window.location.host);
+        }
+        if (displayUrl.includes('127.0.0.1:8000')) {
+            displayUrl = displayUrl.replace('127.0.0.1:8000', window.location.host);
+        }
+        
+        if (displayUrl.includes('/api/')) {
+            displayUrl = displayUrl.replace('/api/', '/');
         }
         
         elements.shortUrl.value = displayUrl;
@@ -751,34 +522,46 @@ const UI = (function() {
         if (originalUrlSpan) {
             originalUrlSpan.textContent = responseData.long_url || originalUrl;
         }
-        elements.resultCard.style.display = 'block';
         
-        state.currentSlug = responseData.slug;
-        
-        // Очищаем форму ТОЛЬКО для новых ссылок
-        if (responseData.is_new !== false) {
-            elements.urlInput.value = '';
-            if (elements.customSlug) {
-                elements.customSlug.value = '';
-                elements.customSlug.classList.remove('invalid');
-                hideFieldHint(elements.customSlugContainer);
-            }
-            if (elements.slugLength) {
-                const { min, max, default: defaultValue } = state.slugLengthConfig;
-                elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
-                elements.slugLength.disabled = false;
-                elements.slugLength.classList.remove('disabled');
-                elements.lengthValue.classList.remove('disabled');
-                elements.slugLengthContainer?.classList.remove('field-disabled');
-                hideFieldHint(elements.slugLengthContainer);
-                updateLengthDisplay();
+        if (elements.expiryInfo && elements.expiryText) {
+            if (responseData.ttl) {
+                const expiryDate = new Date(responseData.ttl);
+                const formattedDate = expiryDate.toLocaleString('ru-RU', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                elements.expiryText.innerHTML = `<i class="fas fa-hourglass-half"></i> Ссылка действительна до: ${formattedDate}`;
+                elements.expiryInfo.style.display = 'block';
+            } else {
+                elements.expiryText.innerHTML = `<i class="fas fa-infinity"></i> Бессрочная ссылка`;
+                elements.expiryInfo.style.display = 'block';
             }
         }
+        
+        elements.resultCard.style.display = 'block';
+        state.currentSlug = responseData.slug;
+        
+        elements.urlInput.value = '';
+        if (elements.customSlug) {
+            elements.customSlug.value = '';
+            elements.customSlug.classList.remove('invalid');
+            hideFieldHint(elements.customSlugContainer);
+        }
+        if (elements.slugLength) {
+            const { min, max, default: defaultValue } = state.slugLengthConfig;
+            elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
+            elements.slugLength.disabled = false;
+            elements.slugLength.classList.remove('disabled');
+            elements.lengthValue.classList.remove('disabled');
+            elements.slugLengthContainer?.classList.remove('field-disabled');
+            hideFieldHint(elements.slugLengthContainer);
+            updateLengthDisplay();
+        }
+        if (elements.ttlDays) elements.ttlDays.value = '';
     }
 
     window.copyToClipboard = async function() {
         const shortUrl = elements.shortUrl.value;
-        
         try {
             await navigator.clipboard.writeText(shortUrl);
             showToast('Ссылка скопирована!', 'success');
@@ -793,51 +576,15 @@ const UI = (function() {
         }
     };
 
-    function toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        const icon = elements.themeToggle.querySelector('i');
-        
-        if (document.body.classList.contains('dark-theme')) {
-            icon.className = 'fas fa-sun';
-            localStorage.setItem('theme', 'dark');
-        } else {
-            icon.className = 'fas fa-moon';
-            localStorage.setItem('theme', 'light');
-        }
-    }
-
-    function initTheme() {
-        const savedTheme = localStorage.getItem('theme');
-        
-        if (savedTheme === 'light') {
-            document.body.classList.remove('dark-theme');
-            if (elements.themeToggle) {
-                elements.themeToggle.querySelector('i').className = 'fas fa-moon';
-            }
-        } else {
-            document.body.classList.add('dark-theme');
-            if (elements.themeToggle) {
-                elements.themeToggle.querySelector('i').className = 'fas fa-sun';
-            }
-        }
-    }
-
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        `;
-        
+        toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i><span>${message}</span>`;
         elements.toastContainer.appendChild(toast);
-        
         setTimeout(() => {
             toast.style.animation = 'slideInRight 0.3s reverse';
             setTimeout(() => {
-                if (elements.toastContainer.contains(toast)) {
-                    elements.toastContainer.removeChild(toast);
-                }
+                if (elements.toastContainer.contains(toast)) elements.toastContainer.removeChild(toast);
             }, 300);
         }, 3000);
     }
@@ -847,22 +594,32 @@ const UI = (function() {
         const btn = elements.shortenBtn;
         const btnText = btn.querySelector('.btn-text');
         const btnLoader = btn.querySelector('.btn-loader');
-        
         if (isLoading) {
             btn.disabled = true;
-            btnText.style.display = 'none';
-            btnLoader.style.display = 'inline-block';
+            if (btnText) btnText.style.display = 'none';
+            if (btnLoader) btnLoader.style.display = 'inline-block';
         } else {
             btn.disabled = false;
-            btnText.style.display = 'inline-block';
-            btnLoader.style.display = 'none';
+            if (btnText) btnText.style.display = 'inline-block';
+            if (btnLoader) btnLoader.style.display = 'none';
         }
     }
 
-    return {
-        init,
-        showToast
-    };
+    async function init() {
+        logIfDev('🚀 Инициализация UI...');
+        initElements();
+        setupUrlInputHandlers();
+        setupUrlInputSelection();
+        setupCustomSlugHandlers();
+        updateAppNameInUI(state.appConfig.app_name);
+        updatePlaceholder(state.appConfig.example_url);
+        await loadFrontendConfig();
+        await loadSlugLengthConfig();
+        setupEventListeners();
+        if (elements.customSlug) toggleFieldsState();
+    }
+
+    return { init, showToast };
 })();
 
 document.addEventListener('DOMContentLoaded', () => {

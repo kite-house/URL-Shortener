@@ -1,9 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from functools import lru_cache
-import os
-import random
 from pathlib import Path
+import random
+
 
 ROOT_DIR = Path(__file__).parent.parent.parent.parent
 DOTENV = ROOT_DIR / '.env'
@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int 
     REDIS_PASSWORD: str
+    REDIS_CACHE_TTL: int = 86400  # 24 часа
 
     APP_NAME: str = "URL-Shortener"
     VERSION: str = "1.0.0"

@@ -22,6 +22,7 @@ services:
     command: uvicorn src.main:app --host ${BACKEND_HOST} --port ${BACKEND_PORT} --reload
     volumes:
       - ./backend:/app
+      - ./backend/logs:/app/logs
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     env_file:

@@ -1,53 +1,33 @@
-from fastapi import APIRouter, HTTPException, status, Query, Depends
+from fastapi import APIRouter, HTTPException, status, Query, Depends, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 from typing import Annotated
 from sqlalchemy.exc import NoResultFound
-from pydantic import AfterValidator
 from datetime import datetime
 
 from src.schemas.urls import UrlSchema
 from src.services.slug_generator import create_url
 from src.services.url_checker import is_url_available
 from src.db import crud 
-from src.api.dependencies import SessionDep, SettingsDep, RedisDep
+from src.api.dependencies import SessionDep, SettingsDep, RedisDep, get_length_query, validate_custom_slug
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
+from src.services.cache import cache_url, get_cached_url
+from src.core.logging import logger
 
 router = APIRouter(prefix = '/api')
 
 
-def checkCustomSlugValid(custom_slug: str):
-    for char in custom_slug:
-        if char in ['/', '?', '@', "#"]:
-            raise ValueError(f'It is forbidden to use "{char}"!')
-
-    for apiroute in router.routes:
-        if custom_slug in apiroute.path:
-            raise ValueError('This address is registered by the system!')
-
-    return custom_slug
-
-async def get_length_query(settings: SettingsDep, length: int | None = Query(None, description = "Длина генерируемого слага")) -> int | None:
-    if length is not None:
-        if length < settings.SLUG_MIN_LENGTH or length > settings.SLUG_MAX_LENGTH:
-            raise HTTPException(
-                status_code = status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail = f"Длина должна быть между {settings.SLUG_MIN_LENGTH} и {settings.SLUG_MAX_LENGTH}"
-            )
-    return length
-
-
-
-
-
-@router.post('/shorten', summary = "Сократить ссылку", tags = ['Shorten 🛠️'])
-async def shorten(session: SessionDep, 
-                  long_url: UrlSchema,
-                  settings: SettingsDep,
-                  redis: RedisDep,
-                  length: Annotated[int | None, Depends(get_length_query)] = None,  
-                  custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None                  
+@router.post('/shorten')
+async def shorten(
+    session: SessionDep,
+    url_data: UrlSchema,
+    settings: SettingsDep,
+    redis: RedisDep,
+    background_tasks: BackgroundTasks,
+    length: Annotated[int | None, Depends(get_length_query)] = None,
+    custom_slug: Annotated[str | None, Depends(validate_custom_slug)] = None
 ) -> JSONResponse:
-    long_url = str(long_url.url)
+    long_url = url_data.original_url
+    
     if not await is_url_available(long_url):
         raise HTTPException(status_code = status.HTTP_422_UNPROCESSABLE_CONTENT, detail = "Данная ссылка недоступна!")
 
@@ -55,6 +35,23 @@ async def shorten(session: SessionDep,
 
     try:
         await crud.write_url(slug = slug, long_url = long_url, session = session)
+
+        if redis: background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
+
+        return JSONResponse(
+            status_code = status.HTTP_201_CREATED,
+            content = {
+                "success" : True,
+                "cached" : redis is not None,
+                "message" : "Ссылка успешно создана!",
+                "data" : {
+                    "slug": slug,
+                    "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
+                    "long_url" : long_url
+                }
+            }
+        )
+
     except (URLAlreadyRegistered, SlugAlreadyRegistered) as error:
 
         if isinstance(error, URLAlreadyRegistered):
@@ -79,26 +76,6 @@ async def shorten(session: SessionDep,
 
             }
         )
-
-    if redis:
-        try:
-            await redis.setex(slug, 86400, long_url)
-        except Exception as e:
-            print(e)
-
-    return JSONResponse(
-        status_code = status.HTTP_201_CREATED,
-        content = {
-            "success" : True,
-            "cached" : bool(redis and redis.client),
-            "message" : "Ссылка успешно создана!",
-            "data" : {
-                "slug": slug,
-                "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
-                "long_url" : long_url
-            }
-        }
-    )
 
 @router.get('/info/{slug}', summary = "Получить информацию об короткой ссылке", tags = ['Information 📑'])
 async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONResponse:
@@ -164,8 +141,8 @@ async def top(session: SessionDep, settings: SettingsDep, quantity: Annotated[in
 async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectResponse:
     short_url = None
 
-    if redis:
-        short_url = await redis.get(slug)
+    if redis: 
+        short_url = await get_cached_url(redis, slug)
 
     if not short_url:
         try:

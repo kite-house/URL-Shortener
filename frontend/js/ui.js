@@ -10,7 +10,7 @@ const UI = (function() {
             version: "1.0.0",
             mode: "DEV",
             example_url: "https://example.com/very/long/url",
-            api_base_url: "http://${BACKEND_HOST}:${BACKEND_PORT}/api'"
+            api_base_url: "http://localhost:8000/api"
         },
         slugLengthConfig: {
             min: 3,
@@ -711,10 +711,16 @@ const UI = (function() {
         try {
             const result = await API.shortenUrl(url, customSlug, length);
             
-            if (result.status === 201) {
-                handleSuccessResponse(result.data.data, url, 'Ссылка успешно сокращена!');
-            } else if (result.status === 409) {
-                handleSuccessResponse(result.data.data, url, 'Ссылка уже существует!');
+            if (result.success) {
+                // Показываем сообщение в зависимости от того, новая ссылка или существующая
+                if (!result.isNew) {
+                    showToast(result.message || 'Ссылка уже существует!', 'info');
+                } else {
+                    showToast(result.message || 'Ссылка успешно сокращена!', 'success');
+                }
+                
+                // Отображаем результат (и для новых, и для существующих ссылок)
+                handleSuccessResponse(result.data, url, result.message);
             }
             
         } catch (error) {
@@ -741,28 +747,32 @@ const UI = (function() {
         }
         
         elements.shortUrl.value = displayUrl;
-        elements.originalUrl.querySelector('span').textContent = responseData.long_url || originalUrl;
+        const originalUrlSpan = elements.originalUrl.querySelector('span');
+        if (originalUrlSpan) {
+            originalUrlSpan.textContent = responseData.long_url || originalUrl;
+        }
         elements.resultCard.style.display = 'block';
         
         state.currentSlug = responseData.slug;
         
-        showToast(message, 'success');
-        
-        elements.urlInput.value = '';
-        if (elements.customSlug) {
-            elements.customSlug.value = '';
-            elements.customSlug.classList.remove('invalid');
-            hideFieldHint(elements.customSlugContainer);
-        }
-        if (elements.slugLength) {
-            const { min, max, default: defaultValue } = state.slugLengthConfig;
-            elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
-            elements.slugLength.disabled = false;
-            elements.slugLength.classList.remove('disabled');
-            elements.lengthValue.classList.remove('disabled');
-            elements.slugLengthContainer?.classList.remove('field-disabled');
-            hideFieldHint(elements.slugLengthContainer);
-            updateLengthDisplay();
+        // Очищаем форму ТОЛЬКО для новых ссылок
+        if (responseData.is_new !== false) {
+            elements.urlInput.value = '';
+            if (elements.customSlug) {
+                elements.customSlug.value = '';
+                elements.customSlug.classList.remove('invalid');
+                hideFieldHint(elements.customSlugContainer);
+            }
+            if (elements.slugLength) {
+                const { min, max, default: defaultValue } = state.slugLengthConfig;
+                elements.slugLength.value = Math.min(Math.max(defaultValue, min), max);
+                elements.slugLength.disabled = false;
+                elements.slugLength.classList.remove('disabled');
+                elements.lengthValue.classList.remove('disabled');
+                elements.slugLengthContainer?.classList.remove('field-disabled');
+                hideFieldHint(elements.slugLengthContainer);
+                updateLengthDisplay();
+            }
         }
     }
 

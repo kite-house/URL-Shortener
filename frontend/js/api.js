@@ -1,6 +1,7 @@
+// api.js - Модуль для работы с API
 const API = (function() {
     const API_CONFIG = {
-        baseURL: 'http://${BACKEND_HOST}:${BACKEND_PORT}/api',
+        baseURL: 'http://localhost:8000/api',
         endpoints: {
             shorten: '/shorten',
             info: '/info',
@@ -27,7 +28,20 @@ const API = (function() {
     }
 
     async function handleResponse(response) {
-        // Проверяем статус ответа
+        // Для статуса 409 Conflict - это существующая ссылка, не ошибка
+        if (response.status === 409) {
+            const data = await response.json();
+            logIfDev('📌 Существующая ссылка:', data);
+            
+            return {
+                status: response.status,
+                data: data,
+                success: true,
+                isExisting: true
+            };
+        }
+        
+        // Проверяем другие статусы ошибок
         if (!response.ok) {
             let errorMessage = 'Ошибка запроса';
             
@@ -37,15 +51,11 @@ const API = (function() {
                 
                 // Обработка ошибки валидации Pydantic
                 if (Array.isArray(errorData)) {
-                    // Это ошибка валидации Pydantic
                     const firstError = errorData[0];
                     if (firstError && firstError.msg) {
                         errorMessage = firstError.msg;
-                        // Добавляем контекст если есть
-                        if (firstError.ctx) {
-                            if (firstError.ctx.expected_schemes) {
-                                errorMessage = `URL должен начинаться с http:// или https://`;
-                            }
+                        if (firstError.ctx && firstError.ctx.expected_schemes) {
+                            errorMessage = `URL должен начинаться с http:// или https://`;
                         }
                     } else {
                         errorMessage = 'Ошибка валидации URL';
@@ -56,7 +66,6 @@ const API = (function() {
                     if (typeof errorData.detail === 'string') {
                         errorMessage = errorData.detail;
                     } else if (Array.isArray(errorData.detail)) {
-                        // Массив ошибок валидации
                         const firstError = errorData.detail[0];
                         if (firstError && firstError.msg) {
                             errorMessage = firstError.msg;
@@ -73,7 +82,6 @@ const API = (function() {
                     errorMessage = errorData.message;
                 }
             } catch (e) {
-                // Если не удалось распарсить JSON
                 errorMessage = `HTTP ошибка ${response.status}`;
             }
             
@@ -91,7 +99,8 @@ const API = (function() {
         return {
             status: response.status,
             data: data,
-            success: data.success || false
+            success: data.success || false,
+            isExisting: false
         };
     }
 
@@ -168,12 +177,35 @@ const API = (function() {
             });
             
             const result = await handleResponse(response);
-            logIfDev('✅ Успешный ответ:', result);
+            
+            // Обработка существующей ссылки (статус 409)
+            if (result.isExisting || result.status === 409) {
+                logIfDev('📌 Получена существующая ссылка:', result.data.data);
+                return {
+                    success: true,
+                    status: 409,
+                    isNew: false,
+                    data: result.data.data,
+                    message: result.data.message || 'Ссылка уже существует!'
+                };
+            }
+            
+            // Обработка новой созданной ссылки (статус 201)
+            if (result.status === 201) {
+                logIfDev('✅ Новая ссылка создана:', result.data.data);
+                return {
+                    success: true,
+                    status: 201,
+                    isNew: true,
+                    data: result.data.data,
+                    message: result.data.message || 'Ссылка успешно сокращена!'
+                };
+            }
+            
             return result;
             
         } catch (error) {
             errorLogIfDev('❌ API Error:', error);
-            // Убеждаемся, что ошибка - это строка
             if (error instanceof Error) {
                 throw error;
             } else {

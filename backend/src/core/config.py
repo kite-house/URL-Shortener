@@ -1,7 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from functools import lru_cache
+import os
 import random
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parent.parent.parent.parent
+DOTENV = ROOT_DIR / '.env'
 
 class Settings(BaseSettings):
     MODE: str
@@ -29,16 +34,14 @@ class Settings(BaseSettings):
     ALLOWED_HEADERS: List[str] = ["*"]
     
     model_config = SettingsConfigDict(
-        env_file = ".env"
+        env_file= str(DOTENV),
+        env_file_encoding='utf-8',
+        extra='ignore' 
     )
 
     @property
     def DB_URL(self):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    
-    @property
-    def REDIS_DATA(self):
-        return self.REDIS_HOST, self.REDIS_PORT
     
     @property
     def RANDOM_SLUG_LENGTH(self):

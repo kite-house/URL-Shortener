@@ -21,7 +21,7 @@ services:
     build: ./backend
     command: uvicorn src.main:app --host ${BACKEND_HOST} --port ${BACKEND_PORT} --reload
     volumes:
-      - ./backend/src:/src 
+      - ./backend:/app
     ports:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     env_file:
@@ -31,12 +31,15 @@ services:
         condition: service_started
       postgres_db:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
 
   postgres_db:
     image: postgres:17.4-alpine
     container_name: postgres_db
     restart: always
     environment:
+      DB_HOST: postgres_db
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: ${DB_NAME}  
@@ -64,6 +67,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  migrations:
+    container_name: migrations
+    build: ./backend
+    command: alembic upgrade head
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    restart: "no" 
 
 volumes:
   postgres_data:

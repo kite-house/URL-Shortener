@@ -47,14 +47,25 @@ async def shorten(session: SessionDep,
                   length: Annotated[int | None, Depends(get_length_query)] = None,  
                   custom_slug: Annotated[str | None, Query(min_length=3), AfterValidator(checkCustomSlugValid)] = None                  
 ) -> JSONResponse:
-    if not await is_url_available(str(long_url.url)):
+    long_url = str(long_url.url)
+    if not await is_url_available(long_url):
         raise HTTPException(status_code = status.HTTP_422_UNPROCESSABLE_CONTENT, detail = "Данная ссылка недоступна!")
 
     slug = await create_url(session, settings, length) if not custom_slug else custom_slug
 
     try:
-        await crud.write_url(slug = slug, long_url = str(long_url.url), session = session)
+        await crud.write_url(slug = slug, long_url = long_url, session = session)
     except (URLAlreadyRegistered, SlugAlreadyRegistered) as error:
+
+        if isinstance(error, URLAlreadyRegistered):
+            url = await crud.get_url(long_url = long_url, session = session)
+            slug = url.slug
+
+        elif isinstance(error, SlugAlreadyRegistered):
+            url = await crud.get_url(slug = slug, session = session)
+            long_url = url.long_url
+
+
         return JSONResponse(
             status_code = status.HTTP_409_CONFLICT,
             content = {
@@ -63,7 +74,7 @@ async def shorten(session: SessionDep,
                 "data" : {
                     "slug" : slug,
                     "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
-                    "long_url" : str(long_url.url)
+                    "long_url" : long_url
                 }
 
             }
@@ -71,7 +82,7 @@ async def shorten(session: SessionDep,
 
     if redis:
         try:
-            await redis.setex(slug, 86400, str(long_url.url))
+            await redis.setex(slug, 86400, long_url)
         except Exception as e:
             print(e)
 
@@ -84,7 +95,7 @@ async def shorten(session: SessionDep,
             "data" : {
                 "slug": slug,
                 "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
-                "long_url" : str(long_url.url)
+                "long_url" : long_url
             }
         }
     )

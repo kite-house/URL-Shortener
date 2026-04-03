@@ -83,12 +83,12 @@ async def shorten(
 
     except Exception as error:
         logger.error(str(error))
-        raise HTTPException(status_code = 500, detail = "Внутренняя ошибка сервера. Пожалуйста, попробуйте позже.")
+        raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = "Внутренняя ошибка сервера. Пожалуйста, попробуйте позже.")
 
 @router.get('/info/{slug}', summary = "Получить информацию об короткой ссылке", tags = ['Information 📑'])
 async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONResponse:
     try:
-        url = await crud.get_url(slug = slug, session = session)
+        db_url = await crud.get_url(slug = slug, session = session)
 
         return JSONResponse(
             status_code = status.HTTP_200_OK,
@@ -96,11 +96,13 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
                 "success" : True,
                 "message" : "Успешно найден!",
                 "data" : {
-                    "slug" : url.slug,
-                    "short_url" : f"{settings.API_BASE_URL}/api/{url.slug}",
-                    "long_url" : url.long_url,
-                    "count_clicks" : url.count_clicks,
-                    "date_created" : datetime.strftime(url.date_created, "%d.%m.%Y")
+                    "slug" : db_url.slug,
+                    "short_url" : f"{settings.API_BASE_URL}/api/{db_url.slug}",
+                    "long_url" : db_url.long_url,
+                    "count_clicks" : db_url.count_clicks,
+                    "is_active" : db_url.is_active,
+                    "ttl": db_url.ttl.isoformat(),
+                    "date_created" : db_url.date_created.isoformat()
                 } 
             }
         )
@@ -116,35 +118,16 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
                     "short_url" : "-",
                     'long_url' : "-",
                     'count_clicks' : "-",
+                    'is_active' : False,
+                    'ttl': "-",
                     'date_created' : "-",
                 }
             }
         )
-
-@router.get("/top", summary = "Получить топ ссылок" ,tags = ['Information 📑'])
-async def top(session: SessionDep, settings: SettingsDep, quantity: Annotated[int, Query(ge=1)] = 10) -> JSONResponse:
-    results = await crud.get_urls(session)
-
-    results = [
-        {
-            "id": result.id,
-            "slug" : result.slug,
-            "short_url": f"{settings.API_BASE_URL}/api/{result.slug}",
-            "long_url": result.long_url,
-            "count_clicks": result.count_clicks,
-            "date_created": datetime.strftime(result.date_created, "%d.%m.%Y"),
-        }
-        for result in results[:quantity]
-    ]
-
-    return JSONResponse(
-        status_code = status.HTTP_200_OK,
-        content = {
-            "success" : True,
-            "message" : f"Топ {len(results)} ссылок!",
-            "data" : results
-        }
-    )
+    
+    except Exception as error:
+        logger.error(str(error))
+        raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = "Внутренняя ошибка сервера. Пожалуйста, попробуйте позже.")
     
 @router.get('/{slug}', summary = "Перейти по ссылке" ,tags = ['Redirect 🔗'])
 async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectResponse:
@@ -155,8 +138,10 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
 
     if not short_url:
         try:
-            short_url = await crud.get_url(slug = slug, session = session)
-            short_url = short_url.long_url
+            db_url = await crud.get_url(slug = slug, session = session)
+            if not db_url.is_active:
+                raise HTTPException(status_code = status.HTTP_410_GONE, detail = "Срок действия ссылки истек!")
+            short_url = db_url.long_url
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена! Создайте ссылку!')
         

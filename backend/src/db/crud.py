@@ -46,7 +46,28 @@ async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSessi
     if not url: 
         raise exc.NoResultFound
     
-    return url
+    if url.update_is_active():
+        await session.commit()
+
+    return url 
+
+async def get_urls(session: AsyncSession) -> list[Url]: # Не используется, но понадобиться в будущем
+    """Получить все URL, отсортированные по убыванию кликов."""
+    urls = await session.scalars(
+        select(Url).order_by(Url.count_clicks.desc())
+    )
+
+    urls = list(urls.all())
+
+    need_commit = False
+    for url in urls:
+        if url.update_is_active():
+            need_commit = True
+    
+    if need_commit:
+        await session.commit()
+
+    return urls
 
 async def increase_count_clicks(slug: str, session: AsyncSession) -> None:
     """Изменить количество переходов по слагу на +1"""
@@ -57,10 +78,3 @@ async def increase_count_clicks(slug: str, session: AsyncSession) -> None:
     )
     
     await session.commit()
-
-async def get_urls(session: AsyncSession) -> list[Url]:
-    """Получить все URL, отсортированные по убыванию кликов."""
-    result = await session.scalars(
-        select(Url).order_by(Url.count_clicks.desc())
-    )
-    return list(result.all())

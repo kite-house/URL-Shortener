@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, status, Query, Depends, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
-from typing import Annotated
+from typing import Annotated, Optional
 from sqlalchemy.exc import NoResultFound
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from src.schemas.urls import UrlSchema
 from src.services.slug_generator import create_url
@@ -24,17 +24,19 @@ async def shorten(
     redis: RedisDep,
     background_tasks: BackgroundTasks,
     length: Annotated[int | None, Depends(get_length_query)] = None,
-    custom_slug: Annotated[str | None, Depends(validate_custom_slug)] = None
+    custom_slug: Annotated[str | None, Depends(validate_custom_slug)] = None,
+    ttl_days: Annotated[Optional[int], Query(ge=1, le=365, description="TTL в днях")] = None
 ) -> JSONResponse:
     long_url = url_data.original_url
-    
+
     if not await is_url_available(long_url):
         raise HTTPException(status_code = status.HTTP_422_UNPROCESSABLE_CONTENT, detail = "Данная ссылка недоступна!")
 
-    slug = await create_url(session, settings, length) if not custom_slug else custom_slug
+    slug = custom_slug or await create_url(session, settings, length)
+    ttl_expiry = datetime.now(timezone.utc) + timedelta(days = ttl_days) if ttl_days else None
 
     try:
-        await crud.write_url(slug = slug, long_url = long_url, session = session)
+        db_url = await crud.write_url(slug = slug, long_url = long_url, ttl = ttl_expiry, session = session)
 
         if redis: background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
 
@@ -45,23 +47,22 @@ async def shorten(
                 "cached" : redis is not None,
                 "message" : "Ссылка успешно создана!",
                 "data" : {
-                    "slug": slug,
-                    "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
-                    "long_url" : long_url
+                    "slug": db_url.slug,
+                    "short_url" : f"{settings.API_BASE_URL}/api/{db_url.slug}",
+                    "long_url" : db_url.long_url,
+                    "is_active": db_url.is_active,
+                    "ttl" : db_url.ttl.isoformat() if db_url.ttl else None,
+                    "date_created" : db_url.date_created.isoformat()
                 }
             }
         )
 
     except (URLAlreadyRegistered, SlugAlreadyRegistered) as error:
-
         if isinstance(error, URLAlreadyRegistered):
-            url = await crud.get_url(long_url = long_url, session = session)
-            slug = url.slug
+            existing_url = await crud.get_url(long_url = long_url, session = session)
 
         elif isinstance(error, SlugAlreadyRegistered):
-            url = await crud.get_url(slug = slug, session = session)
-            long_url = url.long_url
-
+            existing_url = await crud.get_url(slug = slug, session = session)
 
         return JSONResponse(
             status_code = status.HTTP_409_CONFLICT,
@@ -69,18 +70,25 @@ async def shorten(
                 "success" : True,
                 "message" : str(error),
                 "data" : {
-                    "slug" : slug,
-                    "short_url" : f"{settings.API_BASE_URL}/api/{slug}",
-                    "long_url" : long_url
+                    "slug" : existing_url.slug,
+                    "short_url" : f"{settings.API_BASE_URL}/api/{existing_url.slug}",
+                    "long_url" : existing_url.long_url,
+                    "is_active": existing_url.is_active,
+                    "ttl" : existing_url.ttl.isoformat() if existing_url.ttl else None,
+                    "date_created" : existing_url.date_created.isoformat()
                 }
 
             }
         )
 
+    except Exception as error:
+        logger.error(str(error))
+        raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = "Внутренняя ошибка сервера. Пожалуйста, попробуйте позже.")
+
 @router.get('/info/{slug}', summary = "Получить информацию об короткой ссылке", tags = ['Information 📑'])
 async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONResponse:
     try:
-        url = await crud.get_url(slug = slug, session = session)
+        db_url = await crud.get_url(slug = slug, session = session)
 
         return JSONResponse(
             status_code = status.HTTP_200_OK,
@@ -88,11 +96,13 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
                 "success" : True,
                 "message" : "Успешно найден!",
                 "data" : {
-                    "slug" : url.slug,
-                    "short_url" : f"{settings.API_BASE_URL}/api/{url.slug}",
-                    "long_url" : url.long_url,
-                    "count_clicks" : url.count_clicks,
-                    "date_created" : datetime.strftime(url.date_created, "%d.%m.%Y")
+                    "slug" : db_url.slug,
+                    "short_url" : f"{settings.API_BASE_URL}/api/{db_url.slug}",
+                    "long_url" : db_url.long_url,
+                    "count_clicks" : db_url.count_clicks,
+                    "is_active" : db_url.is_active,
+                    "ttl": db_url.ttl.isoformat(),
+                    "date_created" : db_url.date_created.isoformat()
                 } 
             }
         )
@@ -108,35 +118,16 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
                     "short_url" : "-",
                     'long_url' : "-",
                     'count_clicks' : "-",
+                    'is_active' : False,
+                    'ttl': "-",
                     'date_created' : "-",
                 }
             }
         )
-
-@router.get("/top", summary = "Получить топ ссылок" ,tags = ['Information 📑'])
-async def top(session: SessionDep, settings: SettingsDep, quantity: Annotated[int, Query(ge=1)] = 10) -> JSONResponse:
-    results = await crud.get_urls(session)
-
-    results = [
-        {
-            "id": result.id,
-            "slug" : result.slug,
-            "short_url": f"{settings.API_BASE_URL}/api/{result.slug}",
-            "long_url": result.long_url,
-            "count_clicks": result.count_clicks,
-            "date_created": datetime.strftime(result.date_created, "%d.%m.%Y"),
-        }
-        for result in results[:quantity]
-    ]
-
-    return JSONResponse(
-        status_code = status.HTTP_200_OK,
-        content = {
-            "success" : True,
-            "message" : f"Топ {len(results)} ссылок!",
-            "data" : results
-        }
-    )
+    
+    except Exception as error:
+        logger.error(str(error))
+        raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = "Внутренняя ошибка сервера. Пожалуйста, попробуйте позже.")
     
 @router.get('/{slug}', summary = "Перейти по ссылке" ,tags = ['Redirect 🔗'])
 async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectResponse:
@@ -147,10 +138,12 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
 
     if not short_url:
         try:
-            short_url = await crud.get_url(slug = slug, session = session)
-            short_url = short_url.long_url
+            db_url = await crud.get_url(slug = slug, session = session)
+            if not db_url.is_active:
+                raise HTTPException(status_code = status.HTTP_410_GONE, detail = "Срок действия ссылки истек!")
+            short_url = db_url.long_url
         except NoResultFound:
-            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена! Создайте ссылку!')
+            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
         
     await crud.increase_count_clicks(slug, session)
     return RedirectResponse(short_url, status_code = status.HTTP_302_FOUND)

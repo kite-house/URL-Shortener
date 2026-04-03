@@ -28,11 +28,18 @@ const API = (function() {
     }
 
     async function handleResponse(response) {
-        // Для статуса 409 Conflict - это существующая ссылка, не ошибка
+        const responseText = await response.text();
+        
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            errorLogIfDev('❌ Не удалось распарсить JSON:', responseText);
+            throw new Error(`Сервер вернул ошибку: ${responseText.substring(0, 200)}`);
+        }
+        
         if (response.status === 409) {
-            const data = await response.json();
             logIfDev('📌 Существующая ссылка:', data);
-            
             return {
                 status: response.status,
                 data: data,
@@ -41,59 +48,38 @@ const API = (function() {
             };
         }
         
-        // Проверяем другие статусы ошибок
         if (!response.ok) {
             let errorMessage = 'Ошибка запроса';
             
-            try {
-                const errorData = await response.json();
-                console.log('🔍 Детали ошибки:', errorData);
-                
-                // Обработка ошибки валидации Pydantic
-                if (Array.isArray(errorData)) {
-                    const firstError = errorData[0];
-                    if (firstError && firstError.msg) {
-                        errorMessage = firstError.msg;
-                        if (firstError.ctx && firstError.ctx.expected_schemes) {
-                            errorMessage = `URL должен начинаться с http:// или https://`;
-                        }
-                    } else {
-                        errorMessage = 'Ошибка валидации URL';
-                    }
-                }
-                // Обработка стандартной ошибки FastAPI
-                else if (errorData.detail) {
-                    if (typeof errorData.detail === 'string') {
-                        errorMessage = errorData.detail;
-                    } else if (Array.isArray(errorData.detail)) {
-                        const firstError = errorData.detail[0];
+            if (response.status === 422) {
+                if (data.detail) {
+                    if (Array.isArray(data.detail)) {
+                        const firstError = data.detail[0];
                         if (firstError && firstError.msg) {
                             errorMessage = firstError.msg;
                             if (firstError.ctx && firstError.ctx.expected_schemes) {
-                                errorMessage = `URL должен начинаться с http:// или https://`;
+                                errorMessage = 'URL должен начинаться с http:// или https://';
                             }
+                        } else {
+                            errorMessage = 'Ошибка валидации URL';
                         }
-                    } else if (typeof errorData.detail === 'object') {
-                        errorMessage = JSON.stringify(errorData.detail);
-                    } else {
-                        errorMessage = errorData.detail;
+                    } else if (typeof data.detail === 'string') {
+                        errorMessage = data.detail;
+                    } else if (typeof data.detail === 'object') {
+                        errorMessage = JSON.stringify(data.detail);
                     }
-                } else if (errorData.message) {
-                    errorMessage = errorData.message;
+                } else if (data.message) {
+                    errorMessage = data.message;
+                } else {
+                    errorMessage = 'Некорректный URL. Убедитесь, что ссылка начинается с http:// или https://';
                 }
-            } catch (e) {
-                errorMessage = `HTTP ошибка ${response.status}`;
+            } else if (data.detail) {
+                errorMessage = data.detail;
+            } else if (data.message) {
+                errorMessage = data.message;
             }
             
             throw new Error(errorMessage);
-        }
-        
-        const data = await response.json();
-        
-        // Проверяем, нет ли ошибки в теле ответа
-        if (data.status_code && data.status_code >= 400) {
-            const errorMsg = data.detail || data.message || 'Ошибка сервера';
-            throw new Error(errorMsg);
         }
         
         return {
@@ -106,8 +92,6 @@ const API = (function() {
 
     async function getFrontendConfig() {
         try {
-            logIfDev('📡 Запрос к /api/config/frontend');
-            
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
             
@@ -125,10 +109,8 @@ const API = (function() {
             
             if (data.mode === 'PROD') {
                 isProdMode = true;
-                logIfDev('🔒 Продакшн режим: логирование отключено');
             }
             
-            logIfDev('📦 Получены данные:', data);
             return data;
         } catch (error) {
             errorLogIfDev('❌ Ошибка загрузки конфигурации:', error);
@@ -136,13 +118,13 @@ const API = (function() {
         }
     }
 
-    async function shortenUrl(url, customSlug = null, length = null) {
+    async function shortenUrl(url, customSlug = null, length = null, ttlDays = null) {
         try {
             let urlString = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.shorten}`;
             
             const params = new URLSearchParams();
             
-            if (length !== null && length !== undefined) {
+            if (length !== null && length !== undefined && length !== 6) {
                 const lengthNum = parseInt(length);
                 if (!isNaN(lengthNum) && lengthNum >= 3 && lengthNum <= 10) {
                     params.append('length', lengthNum);
@@ -156,11 +138,18 @@ const API = (function() {
                 }
             }
             
+            if (ttlDays !== null && ttlDays !== undefined && ttlDays !== '') {
+                const ttl = parseInt(ttlDays);
+                if (!isNaN(ttl) && ttl >= 1 && ttl <= 365) {
+                    params.append('ttl_days', ttl);
+                }
+            }
+            
             if (params.toString()) {
                 urlString += `?${params.toString()}`;
             }
             
-            logIfDev('📤 Отправка запроса:', { url: urlString, body: { url } });
+            logIfDev('📤 Отправка запроса:', { url: urlString, body: { url: url } });
             
             const response = await fetch(urlString, {
                 method: 'POST',
@@ -170,17 +159,9 @@ const API = (function() {
                 body: JSON.stringify({ url: url })
             });
             
-            logIfDev('📥 Получен ответ:', { 
-                status: response.status, 
-                statusText: response.statusText,
-                ok: response.ok 
-            });
-            
             const result = await handleResponse(response);
             
-            // Обработка существующей ссылки (статус 409)
             if (result.isExisting || result.status === 409) {
-                logIfDev('📌 Получена существующая ссылка:', result.data.data);
                 return {
                     success: true,
                     status: 409,
@@ -190,9 +171,7 @@ const API = (function() {
                 };
             }
             
-            // Обработка новой созданной ссылки (статус 201)
             if (result.status === 201) {
-                logIfDev('✅ Новая ссылка создана:', result.data.data);
                 return {
                     success: true,
                     status: 201,
@@ -206,11 +185,7 @@ const API = (function() {
             
         } catch (error) {
             errorLogIfDev('❌ API Error:', error);
-            if (error instanceof Error) {
-                throw error;
-            } else {
-                throw new Error(String(error));
-            }
+            throw error;
         }
     }
 

@@ -81,6 +81,22 @@ async def shorten(
 async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONResponse:
     try:
         url = await crud.get_url(slug = slug, session = session)
+
+        return JSONResponse(
+            status_code = status.HTTP_200_OK,
+            content = {
+                "success" : True,
+                "message" : "Успешно найден!",
+                "data" : {
+                    "slug" : url.slug,
+                    "short_url" : f"{settings.API_BASE_URL}/api/{url.slug}",
+                    "long_url" : url.long_url,
+                    "count_clicks" : url.count_clicks,
+                    "date_created" : datetime.strftime(url.date_created, "%d.%m.%Y")
+                } 
+            }
+        )
+    
     except NoResultFound:
         return JSONResponse(
             status_code = status.HTTP_404_NOT_FOUND,
@@ -96,21 +112,6 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
                 }
             }
         )
-    
-    return JSONResponse(
-        status_code = status.HTTP_200_OK,
-        content = {
-            "success" : True,
-            "message" : "Успешно найден!",
-            "data" : {
-                "slug" : url.slug,
-                "short_url" : f"{settings.API_BASE_URL}/api/{url.slug}",
-                "long_url" : url.long_url,
-                "count_clicks" : url.count_clicks,
-                "date_created" : datetime.strftime(url.date_created, "%d.%m.%Y")
-            } 
-        }
-    )
 
 @router.get("/top", summary = "Получить топ ссылок" ,tags = ['Information 📑'])
 async def top(session: SessionDep, settings: SettingsDep, quantity: Annotated[int, Query(ge=1)] = 10) -> JSONResponse:
@@ -149,7 +150,7 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
             short_url = await crud.get_url(slug = slug, session = session)
             short_url = short_url.long_url
         except NoResultFound:
-            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Link not found! Create link!')
+            raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена! Создайте ссылку!')
         
     await crud.increase_count_clicks(slug, session)
     return RedirectResponse(short_url, status_code = status.HTTP_302_FOUND)

@@ -3,7 +3,6 @@ from src.core.config import Settings
 from src.core.logging import logger
 
 
-
 class RedisService:
     def __init__(self, settings: Settings):
         self.settings = settings

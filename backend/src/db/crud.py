@@ -1,23 +1,25 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, update, exc
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 from src.db.models import Url 
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
 
-async def write_url(slug: str, long_url: str, session: AsyncSession) -> None:
+async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSession) -> None:
     """Записать обьект ссылки в базу данных"""
-    session.add(
-        Url(
+
+    url = Url(
             slug = slug,
             long_url = long_url,
-            date_created = datetime.now().date()
+            ttl = ttl
         )
-    )
+    session.add(url)
     try:
         await session.commit()
+        await session.refresh(url)  
+        return url 
     except IntegrityError as error:
         await session.rollback()
 

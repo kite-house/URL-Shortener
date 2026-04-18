@@ -7,11 +7,12 @@ class Base(AsyncAttrs, DeclarativeBase):
     pass
 
 class Url(Base):
+    """Таблица обьекта ссылки"""
     __tablename__ = 'urls'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    slug: Mapped[str] = mapped_column(String(50), unique=True)
-    long_url: Mapped[str] = mapped_column(String(700), unique=True)
+    slug: Mapped[str] = mapped_column(String(50), unique=True, index = True)
+    long_url: Mapped[str] = mapped_column(String(700), unique=True, index = True)
     count_clicks: Mapped[int] = mapped_column(default=0)
     is_active: Mapped[bool] = mapped_column(default = True, nullable=False)
     ttl: Mapped[datetime | None] = mapped_column(DateTime(timezone = True), nullable=True)

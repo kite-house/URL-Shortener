@@ -6,6 +6,7 @@ from src.db.db import async_session
 from src.core.config import Settings
 from src.core.redis import RedisService
 from src.services.validators import SlugValidator
+from src.core.logging import logger
 
 # ==========================  Settings  ===================================
 async def get_settings() -> AsyncGenerator[Settings, None]:
@@ -19,6 +20,11 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:
             yield session
+            await session.commit()
+        except Exception as error:
+            logger.error(str(error))
+            await session.rollback()
+            raise
         finally:
             await session.close()
 

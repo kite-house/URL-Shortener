@@ -19,7 +19,6 @@ services:
   backend:
     container_name: backend
     build: ./backend
-    command: uvicorn src.main:app --host ${BACKEND_HOST} --port ${BACKEND_PORT} --reload
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
@@ -27,6 +26,7 @@ services:
       - "${BACKEND_PORT}:${BACKEND_PORT}"
     env_file:
       - .env
+    restart: always
     depends_on:
       cache:
         condition: service_started

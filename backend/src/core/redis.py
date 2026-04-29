@@ -27,7 +27,6 @@ class RedisService:
     async def close(self):
         """Закрытие соединения"""
         await self.client.close()
-        logger.debug("Подключение redis закрыто")
     
     async def delete(self, key: str) -> bool:
         """Удаление ключа из Redis"""

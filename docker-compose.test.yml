@@ -1,41 +1,39 @@
 services:
   test_db:
-    image: postgres:14-alpine
+    container_name: test_postgres_db
+    image: postgres:17.4-alpine
     environment:
-      POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_pass
-      POSTGRES_DB: test_db
-    ports:
-      - "5433:5432"
+      POSTGRES_USER: test_postgres
+      POSTGRES_PASSWORD: test_postgres
+      POSTGRES_DB: test_postgres_db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      test: ["CMD-SHELL", "pg_isready -U test_postgres -d test_postgres_db"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   test_cache:
-    image: redis:7-alpine
-
+    container_name: test_cache
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
   test_runner:
     build: ./backend
     command: pytest tests/ -v
     volumes:
       - ./backend:/app
-    env_file:
-      - .env.test 
+    environment:
+      DB_USER: test_postgres
+      DB_PASS: test_postgres
+      DB_HOST: test_postgres_db
+      DB_PORT: 5432
+      DB_NAME: test_postgres_db
+      REDIS_HOST: test_cache
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      MODE: TEST
     depends_on:
       test_db:
         condition: service_healthy
       test_cache:
         condition: service_started
-
-
-
-# Команда для запуска тестов
-# docker-compose -f docker-compose.test.yml up --abort-on-container-exit test_runner 
-
-
-# Полная пересборка с запуском
-#>> docker-compose -f docker-compose.test.yml down -v
-#>> docker-compose -f docker-compose.test.yml build --no-cache
-#>> docker-compose -f docker-compose.test.yml up --abort-on-container-exit test_runner

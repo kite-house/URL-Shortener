@@ -6,27 +6,29 @@ import re
 
 from src.db.models import Url 
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
+from src.core.logging import logger
 
-async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSession) -> None:
-    """Записать обьект ссылки в базу данных"""
+async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSession) -> Url:
+    """Записать обьект ссылки в базу данных с возвращением"""
 
     url = Url(
             slug = slug,
             long_url = long_url,
             ttl = ttl
         )
+    
     session.add(url)
+
     try:
-        await session.commit()
+        await session.flush()
         await session.refresh(url)  
         return url 
     except IntegrityError as error:
         await session.rollback()
-
         try:
             field = re.search(r'Key \((.*?)\)', str(error.orig)).group(1)
         except AttributeError:
-            raise error
+            raise
 
         if field == "slug":
             raise SlugAlreadyRegistered
@@ -34,7 +36,7 @@ async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSessi
         if field == "long_url":
             raise URLAlreadyRegistered
         
-        raise error
+        raise
 
 async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSession) -> Url:
     """Получить обьект ссылки по слагу или по длинной ссылке"""
@@ -46,28 +48,7 @@ async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSessi
     if not url: 
         raise exc.NoResultFound
     
-    if url.update_is_active():
-        await session.commit()
-
     return url 
-
-async def get_urls(session: AsyncSession) -> list[Url]: # Не используется, но понадобиться в будущем
-    """Получить все URL, отсортированные по убыванию кликов."""
-    urls = await session.scalars(
-        select(Url).order_by(Url.count_clicks.desc())
-    )
-
-    urls = list(urls.all())
-
-    need_commit = False
-    for url in urls:
-        if url.update_is_active():
-            need_commit = True
-    
-    if need_commit:
-        await session.commit()
-
-    return urls
 
 async def increase_count_clicks(slug: str, session: AsyncSession) -> None:
     """Изменить количество переходов по слагу на +1"""
@@ -76,5 +57,3 @@ async def increase_count_clicks(slug: str, session: AsyncSession) -> None:
         .where(Url.slug == slug)
         .values(count_clicks = Url.count_clicks + 1)
     )
-    
-    await session.commit()

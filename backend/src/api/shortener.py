@@ -101,7 +101,7 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
                     "long_url" : db_url.long_url,
                     "count_clicks" : db_url.count_clicks,
                     "is_active" : db_url.is_active,
-                    "ttl": db_url.ttl.isoformat(),
+                    "ttl": db_url.ttl.isoformat() if db_url.ttl else None,
                     "date_created" : db_url.date_created.isoformat()
                 } 
             }
@@ -139,7 +139,7 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
     if not short_url:
         try:
             db_url = await crud.get_url(slug = slug, session = session)
-            if not db_url.is_active:
+            if not db_url.update_is_active():
                 raise HTTPException(status_code = status.HTTP_410_GONE, detail = "Срок действия ссылки истек!")
             short_url = db_url.long_url
         except NoResultFound:

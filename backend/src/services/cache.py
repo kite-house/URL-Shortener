@@ -12,7 +12,6 @@ async def cache_url(
     """Фоновая задача для кэширования URL в Redis"""
     try:
         await redis.setex(slug, ttl, url)
-        logger.debug(f"Успешное кэширование: {slug} - {url}")
     except Exception as e:
         logger.error(str(e))
 

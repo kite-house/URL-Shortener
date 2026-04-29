@@ -6,6 +6,7 @@ import re
 
 from src.db.models import Url 
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
+from src.core.logging import logger
 
 async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSession) -> Url:
     """Записать обьект ссылки в базу данных с возвращением"""
@@ -23,6 +24,7 @@ async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSessi
         await session.refresh(url)  
         return url 
     except IntegrityError as error:
+        await session.rollback()
         try:
             field = re.search(r'Key \((.*?)\)', str(error.orig)).group(1)
         except AttributeError:

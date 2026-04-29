@@ -42,6 +42,7 @@
 | **Фронтенд** | HTML5, CSS3, JavaScript (Vanilla) |
 | **Контейнеризация** | [Docker](https://www.docker.com/) + [Docker Compose](https://docs.docker.com/compose/) |
 | **Тестирование** | [Pytest](https://docs.pytest.org/) |
+| **Нагрузочное тестирование** | [Locust](https://locust.io/) |
 
 ## 🚀 Быстрый старт
 
@@ -103,6 +104,50 @@
    - Веб-интерфейс: http://localhost
    - Документация API (Swagger): http://localhost:8000/docs
 
+## 📊 Нагрузочное тестирование
+
+Проект прошел нагрузочное тестирование с помощью **Locust** для проверки производительности и стабильности под нагрузкой.
+
+### Результаты тестирования
+
+| Пользователей | RPS | Spawn Rate | Ошибки |
+|--------------|-----|------------|--------|
+| 150 | 65 | 15/сек | 0% |
+| 300 | 82 | 30/сек | 0% |
+| 500 | 102 | 50/сек | 0% |
+| 1000 | 80 | 100/сек | 5% |
+
+### Ключевые выводы
+
+✅ **Оптимальная нагрузка:** 300-500 concurrent пользователей  
+✅ **Максимальный RPS:** 102 при 500 пользователях  
+✅ **0% ошибок** при нагрузке до 500 пользователей  
+⚠️ При 1000 пользователях появляются ошибки (5%) и начинает падать RPS
+
+### Как запустить нагрузочные тесты
+
+1. **Установите Locust**
+   ```bash
+   pip install locust
+   ```
+
+2. **Запустите тестовое окружение**
+   ```bash
+   docker compose -f docker-compose.test.yml up -d test_db test_cache
+   ```
+
+3. **Запустите Locust**
+   ```bash
+   # Веб-интерфейс
+   locust -f backend/tests/load_testing.py --host=http://localhost:8000
+   
+   # Или консольный режим
+   locust -f backend/tests/load_testing.py --host=http://localhost:8000 \
+     --headless --users 500 --spawn-rate 50 --run-time 5m --html=report.html
+   ```
+
+4. **Откройте веб-интерфейс Locust** → http://localhost:8089
+
 ## 🗄️ Управление миграциями (Alembic)
 
 Проект использует **Alembic** для управления схемой базы данных. Миграции запускаются в отдельном сервисе `migrations`, который выполняется один раз при старте.
@@ -159,13 +204,20 @@ backend/
 └── alembic.ini           # Основной конфиг Alembic
 ```
 
-### Лучшие практики
+## 🧪 Тестирование
 
-1. **Всегда проверяйте автогенерируемые миграции** перед коммитом
-2. **Храните миграции в Git** для отслеживания изменений
-3. **Никогда не редактируйте уже примененные миграции** — создавайте новые
-4. **Тестируйте миграции на копии БД** перед применением в production
-5. **Используйте осмысленные имена** для миграций (например, `add_user_email_index`)
+Запуск тестов внутри Docker-контейнера:
+
+```bash
+# Запуск всех тестов
+docker compose exec backend pytest -v
+
+# Запуск с покрытием
+docker compose exec backend pytest --cov=src -v
+
+# Запуск конкретного теста
+docker compose exec backend pytest tests/unit/test_slug_generator.py -v
+```
 
 ## 📖 Использование
 
@@ -272,27 +324,13 @@ curl http://localhost:8000/api/info/my-page
 }
 ```
 
-## 🧪 Тестирование
-
-Запуск тестов внутри Docker-контейнера:
-
-```bash
-# Запуск всех тестов
-docker compose exec backend pytest -v
-
-# Запуск с покрытием
-docker compose exec backend pytest --cov=src -v
-
-# Запуск конкретного теста
-docker compose exec backend pytest tests/unit/test_slug_generator.py -v
-```
-
 ## 📁 Структура проекта
 
 ```
 URL-Shortener/
 ├── .env.example                    # Пример конфигурации
 ├── docker-compose.yml              # Оркестрация всех сервисов
+├── docker-compose.test.yml         # Тестовое окружение
 ├── README.md                       # Документация
 ├── backend/                        # FastAPI приложение
 │   ├── Dockerfile
@@ -331,15 +369,17 @@ URL-Shortener/
 │       └── utils/                  # Вспомогательные модули
 │           ├── helpers.py
 │           └── conflict.py
-└── frontend/                       # Статические файлы веб-интерфейса
-    ├── assets/                     # Ресурсы (изображения, шрифты)
-    ├── css/
-    │   └── style.css               # Стили с анимациями и темами
-    ├── js/
-    │   ├── api.js                  # Модуль для работы с API
-    │   └── ui.js                   # Модуль для управления интерфейсом
-    ├── Dockerfile
-    └── index.html                  # Главная страница
+├── frontend/                       # Статические файлы веб-интерфейса
+│   ├── assets/                     # Ресурсы (изображения, шрифты)
+│   ├── css/
+│   │   └── style.css               # Стили с анимациями и темами
+│   ├── js/
+│   │   ├── api.js                  # Модуль для работы с API
+│   │   └── ui.js                   # Модуль для управления интерфейсом
+│   ├── Dockerfile
+│   └── index.html                  # Главная страница
+└── load_testing/                   # Нагрузочное тестирование
+    └── locustfile.py               # Сценарий для Locust
 ```
 
 ## 🎨 Особенности интерфейса
@@ -365,8 +405,3 @@ URL-Shortener/
 ## 📄 Лицензия
 
 Проект распространяется под лицензией MIT. Подробности в файле LICENSE.
-
-## 📬 Контакты
-
-**Автор:** kite-house  
-**GitHub:** [@kite-house](https://github.com/kite-house)

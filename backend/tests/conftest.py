@@ -1,34 +1,94 @@
-"""Главный конфигурационный файл для тестов."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
 import pytest
-import asyncio
-from typing import AsyncGenerator
+import os
+from typing import AsyncGenerator, Dict
 from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from unittest.mock import AsyncMock
 
 from src.main import app
-from src.api.dependencies import get_session
-from src.core.config import settings
+from src.db import models
+from src.core.config import Settings
+from src.core.redis import RedisService
+from src.api.dependencies import get_session, get_settings, get_redis_service
 
-from tests.fixtures.db_fixtures import event_loop, engine, db_session, setup_database
-from tests.fixtures.redis_fixtures import mock_redis, patch_redis
+DB_USER = os.getenv("DB_USER", "test_postgres")
+DB_PASS = os.getenv("DB_PASS", "test_postgres")
+DB_HOST = os.getenv("DB_HOST", "test_postgres_db")
+DB_PORT = os.getenv("DB_PORT", "5433")
+DB_NAME = os.getenv("DB_NAME", "test_postgres_db")
 
-@pytest.fixture(scope="function")
-async def ac(db_session) -> AsyncGenerator[AsyncClient, None]:
+TEST_DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+@pytest.fixture
+def test_settings():
+    class TestSettings(Settings):
+        @property
+        def DB_URL(self):
+            return TEST_DATABASE_URL
+    
+    settings = TestSettings()
+    settings.MODE = "TEST"
+    settings.REDIS_CACHE_TTL = 60
+    settings.SLUG_MIN_LENGTH = 3
+    settings.SLUG_MAX_LENGTH = 10
+    settings.REDIS_HOST = os.getenv("REDIS_HOST", "test_cache")
+    settings.REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+    settings.REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+    settings.API_BASE_URL = "http://localhost:8000"
+    return settings
+
+@pytest.fixture
+async def engine(test_settings):
+    print(f"Connecting to: {test_settings.DB_URL}")
+    engine = create_async_engine(test_settings.DB_URL, echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
+        await conn.run_sync(models.Base.metadata.create_all)
+    yield engine
+    async with engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.drop_all)
+    await engine.dispose()
+
+@pytest.fixture
+async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
+    async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session_maker() as session:
+        yield session
+        await session.rollback()
+
+@pytest.fixture
+def mock_redis():
+    redis = AsyncMock(spec=RedisService)
+    redis.get = AsyncMock(return_value=None)
+    redis.setex = AsyncMock(return_value=True)
+    redis.ping = AsyncMock(return_value=True)
+    return redis
+
+@pytest.fixture
+async def client(db_session, test_settings, mock_redis):
     async def override_get_session():
         yield db_session
     
-    app.dependency_overrides[get_session] = override_get_session
+    async def override_get_settings():
+        yield test_settings
     
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-        follow_redirects=False
-    ) as client:
+    async def override_get_redis():
+        yield mock_redis
+    
+    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_settings] = override_get_settings
+    app.dependency_overrides[get_redis_service] = override_get_redis
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
     
     app.dependency_overrides.clear()
 
-@pytest.fixture(scope="function", autouse=True)
-def setup_test_settings():
-    settings.BASE_URL = "http://test"
-    settings.MODE = "TEST"
-    yield
+@pytest.fixture
+def sample_url_data() -> Dict:
+    return {"url": "https://example.com/very/long/url"}

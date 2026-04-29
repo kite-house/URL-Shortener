@@ -23,5 +23,6 @@ class SlugValidator:
     @classmethod
     def validate_system_routes(cls, slug: str, existing_routes: set[str]) -> None:
         """Проверка конфликта с системными маршрутами"""
-        if slug in existing_routes:
+        routes_without_slash = {route.lstrip('/') for route in existing_routes}
+        if slug in routes_without_slash:
             raise ValueError(f"Slug '{slug}' is reserved by the system")

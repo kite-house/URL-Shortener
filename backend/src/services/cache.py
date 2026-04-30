@@ -10,7 +10,6 @@ async def cache_url(redis: RedisService, slug: str, url: str, ttl: int = 86400) 
     except Exception as e:
         logger.error(str(e))
 
-
 async def get_cached_url(redis: RedisService, slug: str) -> Optional[str]:
     """Получение URL из кэша"""
     try:
@@ -19,16 +18,16 @@ async def get_cached_url(redis: RedisService, slug: str) -> Optional[str]:
         logger.error(str(e))
         return None
     
-async def accum_link_increment(redis: RedisService, slug) -> Optional[int]:
-    """ Накопление пула счетчиков переходов по ссылкам """
+async def increment_click_counter(redis: RedisService, slug) -> Optional[int]:
+    """Увеличить счётчик кликов, вернуть новое значение"""
     try:
         return await redis.hincrby("counter_transmissions", slug)
     except Exception as e:
         logger.error(str(e))
         return None
     
-async def clear_accum_link_incremet(redis: RedisService, slug) -> None:
-    """ Очищение счетчика переходов по ссылке"""
+async def reset_click_counter(redis: RedisService, slug: str) -> None:
+    """Сбросить счётчик кликов для слага"""
     try:
         await redis.hdel("counter_transmissions", slug)
     except Exception as e:

@@ -16,12 +16,13 @@ class TestE2EWorkflow:
         assert info_response.status_code == 200
         assert info_response.json()["data"]["count_clicks"] == 0
         
-        redirect_response = await client.get(f"/api/{slug}", follow_redirects=False)
-        assert redirect_response.status_code == 302
-        assert redirect_response.headers["location"] == original_url
+        for _ in range(10):
+            redirect_response = await client.get(f"/api/{slug}", follow_redirects=False)
+            assert redirect_response.status_code == 302
+            assert redirect_response.headers["location"] == original_url
         
         info_response2 = await client.get(f"/api/info/{slug}")
-        assert info_response2.json()["data"]["count_clicks"] == 1
+        assert info_response2.json()["data"]["count_clicks"] == 10
     
     @pytest.mark.asyncio
     async def test_custom_slug_workflow(self, client):

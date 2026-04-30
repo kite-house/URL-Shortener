@@ -10,7 +10,7 @@ from src.services.url_checker import is_url_available
 from src.db import crud 
 from src.api.dependencies import SessionDep, SettingsDep, RedisDep, get_length_query, validate_custom_slug
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
-from src.services.cache import cache_url, get_cached_url
+from src.services.cache import cache_url, get_cached_url, accum_link_increment, clear_accum_link_incremet
 from src.core.logging import logger
 
 router = APIRouter(prefix = '/api')
@@ -38,7 +38,7 @@ async def shorten(
     try:
         db_url = await crud.write_url(slug = slug, long_url = long_url, ttl = ttl_expiry, session = session)
 
-        if redis: background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
+        background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
 
         return JSONResponse(
             status_code = status.HTTP_201_CREATED,
@@ -131,10 +131,7 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
     
 @router.get('/{slug}', summary = "Перейти по ссылке" ,tags = ['Redirect 🔗'])
 async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectResponse:
-    short_url = None
-
-    if redis: 
-        short_url = await get_cached_url(redis, slug)
+    short_url = await get_cached_url(redis, slug)
 
     if not short_url:
         try:
@@ -144,6 +141,11 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
             short_url = db_url.long_url
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
-        
-    await crud.increase_count_clicks(slug, session)
+    
+    count_clicks_in_cache = await accum_link_increment(redis, slug)
+    logger.debug((count_clicks_in_cache))
+    if count_clicks_in_cache >= 10:
+        await crud.increase_count_clicks(slug, count_clicks_in_cache, session)
+        await clear_accum_link_incremet(redis, slug)
+
     return RedirectResponse(short_url, status_code = status.HTTP_302_FOUND)

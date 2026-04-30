@@ -50,10 +50,10 @@ async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSessi
     
     return url 
 
-async def increase_count_clicks(slug: str, session: AsyncSession) -> None:
+async def increase_count_clicks(slug: str, count_clicks: int, session: AsyncSession) -> None:
     """Изменить количество переходов по слагу на +1"""
     await session.execute(
         update(Url)
         .where(Url.slug == slug)
-        .values(count_clicks = Url.count_clicks + 1)
+        .values(count_clicks = Url.count_clicks + count_clicks)
     )

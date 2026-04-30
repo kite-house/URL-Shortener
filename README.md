@@ -3,9 +3,9 @@
   <p><strong>Высокопроизводительный сервис для сокращения ссылок на FastAPI с современным веб-интерфейсом</strong></p>
   <p>
     <img src="https://img.shields.io/badge/Python-3.12.10-blue?style=flat-square&logo=python" alt="Python 3.12">
-    <img src="https://img.shields.io/badge/FastAPI-0.124.0-009688?style=flat-square&logo=fastapi" alt="FastAPI">
-    <img src="https://img.shields.io/badge/SQLAlchemy-2.0.44-red?style=flat-square&logo=sqlalchemy" alt="SQLAlchemy">
-    <img src="https://img.shields.io/badge/Alembic-1.14.0-FFB300?style=flat-square&logo=python" alt="Alembic">
+    <img src="https://img.shields.io/badge/FastAPI-0.136.0-009688?style=flat-square&logo=fastapi" alt="FastAPI">
+    <img src="https://img.shields.io/badge/SQLAlchemy-2.0.49-red?style=flat-square&logo=sqlalchemy" alt="SQLAlchemy">
+    <img src="https://img.shields.io/badge/Alembic-1.18.4-FFB300?style=flat-square&logo=python" alt="Alembic">
     <img src="https://img.shields.io/badge/PostgreSQL-17-336791?style=flat-square&logo=postgresql" alt="PostgreSQL">
     <img src="https://img.shields.io/badge/Redis-7.4-DC382D?style=flat-square&logo=redis" alt="Redis">
     <img src="https://img.shields.io/badge/Docker-✓-2496ED?style=flat-square&logo=docker" alt="Docker">
@@ -33,9 +33,9 @@
 | Компонент | Технология |
 |-----------|------------|
 | **Язык (Backend)** | [Python 3.12.10](https://www.python.org/) |
-| **Веб-фреймворк (Backend)** | [FastAPI 0.124.0](https://fastapi.tiangolo.com/) |
-| **ORM** | [SQLAlchemy 2.0.44](https://www.sqlalchemy.org/) |
-| **Миграции БД** | [Alembic 1.14.0](https://alembic.sqlalchemy.org/) |
+| **Веб-фреймворк (Backend)** | [FastAPI 0.136.0](https://fastapi.tiangolo.com/) |
+| **ORM** | [SQLAlchemy 2.0.49](https://www.sqlalchemy.org/) |
+| **Миграции БД** | [Alembic 1.18.4](https://alembic.sqlalchemy.org/) |
 | **База данных** | [PostgreSQL 17.4](https://www.postgresql.org/) |
 | **Кэш** | [Redis 7.4](https://redis.io/) |
 | **Веб-сервер (Frontend)** | [Nginx](https://nginx.org/) |
@@ -112,17 +112,19 @@
 
 | Пользователей | RPS | Spawn Rate | Ошибки |
 |--------------|-----|------------|--------|
-| 150 | 65 | 15/сек | 0% |
-| 300 | 82 | 30/сек | 0% |
-| 500 | 102 | 50/сек | 0% |
-| 1000 | 80 | 100/сек | 5% |
+| 150 | 70 | 15/сек | 0% |
+| 300 | 143 | 30/сек | 0% |
+| 500 | 160 | 50/сек | 0% |
+| 1000 | 150 | 100/сек | 1% |
 
 ### Ключевые выводы
 
-✅ **Оптимальная нагрузка:** 300-500 concurrent пользователей  
-✅ **Максимальный RPS:** 102 при 500 пользователях  
-✅ **0% ошибок** при нагрузке до 500 пользователей  
-⚠️ При 1000 пользователях появляются ошибки (5%) и начинает падать RPS
+✅ **Отличная линейная масштабируемость** до 500 пользователей  
+✅ **Максимальный RPS:** 160 при 500 concurrent пользователях  
+✅ **Стабильность:** 100% успешных запросов до 500 пользователей  
+✅ **Высокая эффективность кэширования** — RPS вырос на 57% по сравнению с предыдущей версией  
+⚠️ **Предел мощности:** при 1000 пользователях RPS падает на 6%, появляются единичные ошибки (1%)  
+🎯 **Рекомендация:** оптимальная рабочая нагрузка — до 500 пользователей. Для 1000+ требуется горизонтальное масштабирование.
 
 ### Как запустить нагрузочные тесты
 
@@ -131,9 +133,9 @@
    pip install locust
    ```
 
-2. **Запустите тестовое окружение**
+2. **Запустите приложение**
    ```bash
-   docker compose -f docker-compose.test.yml up -d test_db test_cache
+   docker-compose up -d --build
    ```
 
 3. **Запустите Locust**
@@ -147,6 +149,11 @@
    ```
 
 4. **Откройте веб-интерфейс Locust** → http://localhost:8089
+
+5. **После тестирования полностью очистите окружение
+  ```bash
+  docker-compose down -v
+  ```
 
 ## 🗄️ Управление миграциями (Alembic)
 
@@ -209,14 +216,7 @@ backend/
 Запуск тестов внутри Docker-контейнера:
 
 ```bash
-# Запуск всех тестов
-docker compose exec backend pytest -v
-
-# Запуск с покрытием
-docker compose exec backend pytest --cov=src -v
-
-# Запуск конкретного теста
-docker compose exec backend pytest tests/unit/test_slug_generator.py -v
+docker-compose -f docker-compose.test.yml up --abort-on-container-exit test_runner
 ```
 
 ## 📖 Использование
@@ -328,10 +328,6 @@ curl http://localhost:8000/api/info/my-page
 
 ```
 URL-Shortener/
-├── .env.example                    # Пример конфигурации
-├── docker-compose.yml              # Оркестрация всех сервисов
-├── docker-compose.test.yml         # Тестовое окружение
-├── README.md                       # Документация
 ├── backend/                        # FastAPI приложение
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -356,19 +352,20 @@ URL-Shortener/
 │       │   └── models.py
 │       ├── schemas/                # Pydantic схемы
 │       ├── tests/                  # Тесты
-│       │   ├── __init__.py
-│       │   ├── test_data.py
-│       │   ├── fixtures/           # Фикстуры для тестов
-│       │   │   ├── client_fixtures.py
-│       │   │   ├── db_fixtures.py
-│       │   │   └── redis_fixtures.py
+│       │   ├── e2e/           # e2e
+│       │   │   └── test_workflow.py
 │       │   ├── integration/        # Интеграционные тесты
-│       │   │   └── test_api.py
-│       │   └── unit/               # Модульные тесты
-│       │       └── test_slug_generator.py
-│       └── utils/                  # Вспомогательные модули
-│           ├── helpers.py
-│           └── conflict.py
+│       │   │   ├── test_api_config.py
+│       │   │   ├── test_api_info.py
+│       │   │   ├── test_api_redirect.py
+│       │   │   └── test_api_shorten.py
+│       │   ├── unit/               # Модульные тесты
+│       │   │   ├── test_cache.py
+│       │   │   ├── test_models.py
+│       │   │   ├── test_url_checker.py
+│       │   │   └── test_validators.py
+│       │   ├── conftest.py
+│       │   └── load_testing.pu                  # Вспомогательные модули
 ├── frontend/                       # Статические файлы веб-интерфейса
 │   ├── assets/                     # Ресурсы (изображения, шрифты)
 │   ├── css/
@@ -376,10 +373,14 @@ URL-Shortener/
 │   ├── js/
 │   │   ├── api.js                  # Модуль для работы с API
 │   │   └── ui.js                   # Модуль для управления интерфейсом
+│   ├── 404.html
 │   ├── Dockerfile
+│   ├── expired.html
 │   └── index.html                  # Главная страница
-└── load_testing/                   # Нагрузочное тестирование
-    └── locustfile.py               # Сценарий для Locust
+├── .env.example                    # Пример конфигурации
+├── docker-compose.yml              # Оркестрация всех сервисов
+├── docker-compose.test.yml         # Тестовое окружение
+└── README.md                       # Документация
 ```
 
 ## 🎨 Особенности интерфейса

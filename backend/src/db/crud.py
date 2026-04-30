@@ -8,7 +8,7 @@ from src.db.models import Url
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
 from src.core.logging import logger
 
-async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSession) -> Url:
+async def write_url(session: AsyncSession, slug: str, long_url: str, ttl: datetime) -> Url:
     """Записать обьект ссылки в базу данных с возвращением"""
 
     url = Url(
@@ -38,7 +38,7 @@ async def write_url(slug: str, long_url: str, ttl: datetime, session: AsyncSessi
         
         raise
 
-async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSession) -> Url:
+async def get_url(session: AsyncSession, slug: str = None, long_url: str = None) -> Url:
     """Получить обьект ссылки по слагу или по длинной ссылке"""
     url = await session.scalar(
         select(Url)
@@ -50,8 +50,8 @@ async def get_url(*, slug: str = None, long_url: str = None, session: AsyncSessi
     
     return url 
 
-async def increase_count_clicks(slug: str, count_clicks: int, session: AsyncSession) -> None:
-    """Изменить количество переходов по слагу на +1"""
+async def increment_count_clicks(session: AsyncSession, slug: str, count_clicks: int) -> None:
+    """Увеличить количество переходов"""
     await session.execute(
         update(Url)
         .where(Url.slug == slug)

@@ -9,7 +9,7 @@ def ValidOutputUrl(func):
     async def wrapper(*args, **kwargs):
         url = await func(*args, **kwargs)
         try:
-            await get_url(slug = url, session = args[0])
+            await get_url(args[0], slug = url)
         except NoResultFound:
             return url
         return await wrapper(*args, **kwargs)

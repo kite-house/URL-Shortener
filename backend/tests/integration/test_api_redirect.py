@@ -24,7 +24,8 @@ class TestRedirectAPI:
             create_response = await client.post("/api/shorten", json=sample_url_data)
             slug = create_response.json()["data"]["slug"]
         
-        await client.get(f"/api/{slug}", follow_redirects=False)
+        for _ in range(10): 
+            await client.get(f"/api/{slug}", follow_redirects=False)
         
         info_response = await client.get(f"/api/info/{slug}")
-        assert info_response.json()["data"]["count_clicks"] == 1
+        assert info_response.json()["data"]["count_clicks"] == 10

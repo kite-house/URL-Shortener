@@ -1,3 +1,4 @@
+# conftest.py - упрощённая версия
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -7,7 +8,7 @@ import os
 from typing import AsyncGenerator, Dict
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from unittest.mock import AsyncMock
+from unittest.mock import patch, AsyncMock
 
 from src.main import app
 from src.db import models
@@ -18,10 +19,15 @@ from src.api.dependencies import get_session, get_settings, get_redis_service
 DB_USER = os.getenv("DB_USER", "test_postgres")
 DB_PASS = os.getenv("DB_PASS", "test_postgres")
 DB_HOST = os.getenv("DB_HOST", "test_postgres_db")
-DB_PORT = os.getenv("DB_PORT", "5433")
+DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "test_postgres_db")
 
 TEST_DATABASE_URL = f"postgresql+asyncpg://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+REDIS_HOST = os.getenv("REDIS_HOST", "test_cache")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+
 
 @pytest.fixture
 def test_settings():
@@ -35,11 +41,12 @@ def test_settings():
     settings.REDIS_CACHE_TTL = 60
     settings.SLUG_MIN_LENGTH = 3
     settings.SLUG_MAX_LENGTH = 10
-    settings.REDIS_HOST = os.getenv("REDIS_HOST", "test_cache")
-    settings.REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-    settings.REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+    settings.REDIS_HOST = REDIS_HOST
+    settings.REDIS_PORT = REDIS_PORT
+    settings.REDIS_PASSWORD = REDIS_PASSWORD
     settings.API_BASE_URL = "http://localhost:8000"
     return settings
+
 
 @pytest.fixture
 async def engine(test_settings):
@@ -53,6 +60,7 @@ async def engine(test_settings):
         await conn.run_sync(models.Base.metadata.drop_all)
     await engine.dispose()
 
+
 @pytest.fixture
 async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
     async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
@@ -60,16 +68,19 @@ async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
         yield session
         await session.rollback()
 
-@pytest.fixture
-def mock_redis():
-    redis = AsyncMock(spec=RedisService)
-    redis.get = AsyncMock(return_value=None)
-    redis.setex = AsyncMock(return_value=True)
-    redis.ping = AsyncMock(return_value=True)
-    return redis
 
 @pytest.fixture
-async def client(db_session, test_settings, mock_redis):
+async def real_redis(test_settings):
+    redis = RedisService(test_settings)
+    await redis.client.flushdb() 
+    yield redis
+    await redis.client.flushdb() 
+    await redis.close()
+
+
+@pytest.fixture
+async def client(db_session, test_settings, real_redis):
+    """Клиент с реальным Redis"""
     async def override_get_session():
         yield db_session
     
@@ -77,7 +88,7 @@ async def client(db_session, test_settings, mock_redis):
         yield test_settings
     
     async def override_get_redis():
-        yield mock_redis
+        yield real_redis
     
     app.dependency_overrides[get_session] = override_get_session
     app.dependency_overrides[get_settings] = override_get_settings
@@ -88,6 +99,24 @@ async def client(db_session, test_settings, mock_redis):
         yield client
     
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def mock_redis():
+    redis = AsyncMock(spec=RedisService)
+    redis.get = AsyncMock(return_value=None)
+    redis.setex = AsyncMock(return_value=True)
+    redis.ping = AsyncMock(return_value=True)
+    redis.hincrby = AsyncMock(return_value=1)
+    redis.hdel = AsyncMock(return_value=1)
+    redis.hget = AsyncMock(return_value=None)
+    redis.hgetall = AsyncMock(return_value={})
+    redis.delete = AsyncMock(return_value=True)
+    redis.exists = AsyncMock(return_value=False)
+    redis.incr = AsyncMock(return_value=1)
+    redis.close = AsyncMock()
+    return redis
+
 
 @pytest.fixture
 def sample_url_data() -> Dict:

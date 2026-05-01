@@ -1,22 +1,40 @@
+import json
 from typing import Optional
+from datetime import datetime, timezone
 
 from src.core.redis import RedisService
 from src.core.logging import logger
 
-async def cache_url(redis: RedisService, slug: str, url: str, ttl: int = 86400) -> None:
+async def cache_url(redis: RedisService, slug: str, url: str, expires_at: datetime, ttl: int = 86400) -> None:
     """Фоновая задача для кэширования URL в Redis"""
     try:
-        await redis.setex(slug, ttl, url)
+        cache_data = {
+            "long_url": url, 
+            "expires_at": expires_at.isoformat() if expires_at else None
+        }
+        await redis.setex(slug, ttl, json.dumps(cache_data))
     except Exception as e:
         logger.error(str(e))
 
-async def get_cached_url(redis: RedisService, slug: str) -> Optional[str]:
-    """Получение URL из кэша"""
+async def get_cached_url(redis: RedisService, slug: str) -> tuple[str | None, bool]:
+    """Получить URL из кэша с проверкой срока действия"""
     try:
-        return await redis.get(slug)
+        cached = await redis.get(slug)
+        if cached:
+            data = json.loads(cached)
+            if data.get("expires_at"):
+                expires_at = datetime.fromisoformat(data["expires_at"])
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+                if expires_at and expires_at < datetime.now(timezone.utc):
+                    await redis.delete(slug)
+                    return None, False
+            return data["long_url"], True
+        return None, False
     except Exception as e:
         logger.error(str(e))
-        return None
+        return None, False
     
 async def increment_click_counter(redis: RedisService, slug) -> Optional[int]:
     """Увеличить счётчик кликов, вернуть новое значение"""

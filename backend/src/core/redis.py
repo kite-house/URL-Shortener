@@ -29,9 +29,9 @@ class RedisService:
         """Закрытие соединения"""
         await self.client.close()
     
-    async def delete(self, key: str, field) -> bool:
+    async def delete(self, key: str) -> bool:
         """Удаление ключа из Redis"""
-        return await self.client.delete(key, field)
+        return await self.client.delete(key)
     
     async def hdel(self, key: str, field) -> int:
         """Удаление ключа в хэше"""

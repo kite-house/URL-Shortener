@@ -8,7 +8,8 @@ import os
 from typing import AsyncGenerator, Dict
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, Mock
+from datetime import datetime, timezone, timedelta
 
 from src.main import app
 from src.db import models
@@ -80,7 +81,6 @@ async def real_redis(test_settings):
 
 @pytest.fixture
 async def client(db_session, test_settings, real_redis):
-    """Клиент с реальным Redis"""
     async def override_get_session():
         yield db_session
     
@@ -117,6 +117,44 @@ def mock_redis():
     redis.close = AsyncMock()
     return redis
 
+@pytest.fixture
+def mock_db_url():
+    url = Mock()
+    url.long_url = "https://example.com"
+    url.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    url.update_is_active = Mock(return_value=True)
+    return url
+
+@pytest.fixture
+async def client_with_mock_redis(db_session, test_settings, mock_redis):
+    async def override_get_session():
+        yield db_session
+    
+    async def override_get_settings():
+        yield test_settings
+    
+    async def override_get_redis():
+        yield mock_redis
+    
+    original_get_session = app.dependency_overrides.get(get_session)
+    original_get_settings = app.dependency_overrides.get(get_settings)
+    original_get_redis = app.dependency_overrides.get(get_redis_service)
+    
+    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_settings] = override_get_settings
+    app.dependency_overrides[get_redis_service] = override_get_redis
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+    
+    app.dependency_overrides.clear()
+    if original_get_session:
+        app.dependency_overrides[get_session] = original_get_session
+    if original_get_settings:
+        app.dependency_overrides[get_settings] = original_get_settings
+    if original_get_redis:
+        app.dependency_overrides[get_redis_service] = original_get_redis
 
 @pytest.fixture
 def sample_url_data() -> Dict:

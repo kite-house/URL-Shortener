@@ -130,15 +130,16 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
         raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = "Внутренняя ошибка сервера. Пожалуйста, попробуйте позже.")
     
 @router.get('/{slug}', summary = "Перейти по ссылке" ,tags = ['Redirect 🔗'])
-async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectResponse:
-    short_url = await get_cached_url(redis, slug)
+async def redirect(session: SessionDep, settings: SettingsDep, redis: RedisDep, background_tasks: BackgroundTasks,slug: str) -> RedirectResponse:
+    long_url = await get_cached_url(redis, slug)
 
-    if not short_url:
+    if not long_url:
         try:
             db_url = await crud.get_url(session, slug)
             if not db_url.update_is_active():
                 raise HTTPException(status_code = status.HTTP_410_GONE, detail = "Срок действия ссылки истек!")
-            short_url = db_url.long_url
+            long_url = db_url.long_url
+            background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
     
@@ -147,4 +148,4 @@ async def redirect(session: SessionDep, redis: RedisDep, slug: str) -> RedirectR
         await crud.increment_count_clicks(session, slug, count_clicks_in_cache)
         await reset_click_counter(redis, slug)
 
-    return RedirectResponse(short_url, status_code = status.HTTP_302_FOUND)
+    return RedirectResponse(long_url, status_code = status.HTTP_302_FOUND)

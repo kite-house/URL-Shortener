@@ -24,8 +24,11 @@ async def get_cached_url(redis: RedisService, slug: str) -> tuple[str | None, bo
             data = json.loads(cached)
             if data.get("expires_at"):
                 expires_at = datetime.fromisoformat(data["expires_at"])
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+
                 if expires_at and expires_at < datetime.now(timezone.utc):
-                    await redis.delete(slug, cached)
+                    await redis.delete(slug)
                     return None, False
             return data["long_url"], True
         return None, False

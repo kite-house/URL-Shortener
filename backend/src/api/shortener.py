@@ -38,7 +38,7 @@ async def shorten(
     try:
         db_url = await crud.write_url(session, slug, long_url, ttl_expiry)
 
-        background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
+        background_tasks.add_task(cache_url, redis, slug, long_url, db_url.ttl, settings.REDIS_CACHE_TTL)
 
         return JSONResponse(
             status_code = status.HTTP_201_CREATED,
@@ -64,10 +64,13 @@ async def shorten(
         elif isinstance(error, SlugAlreadyRegistered):
             existing_url = await crud.get_url(session, slug = slug)
 
+        background_tasks.add_task(cache_url, redis, slug, existing_url.long_url, existing_url.ttl, settings.REDIS_CACHE_TTL)
+
         return JSONResponse(
             status_code = status.HTTP_409_CONFLICT,
             content = {
                 "success" : True,
+                "cached" : redis is not None,
                 "message" : str(error),
                 "data" : {
                     "slug" : existing_url.slug,
@@ -131,15 +134,15 @@ async def info(session: SessionDep, settings: SettingsDep, slug: str) -> JSONRes
     
 @router.get('/{slug}', summary = "Перейти по ссылке" ,tags = ['Redirect 🔗'])
 async def redirect(session: SessionDep, settings: SettingsDep, redis: RedisDep, background_tasks: BackgroundTasks,slug: str) -> RedirectResponse:
-    long_url = await get_cached_url(redis, slug)
+    long_url, is_active = await get_cached_url(redis, slug)
 
-    if not long_url:
+    if not is_active or not long_url:
         try:
             db_url = await crud.get_url(session, slug)
             if not db_url.update_is_active():
                 raise HTTPException(status_code = status.HTTP_410_GONE, detail = "Срок действия ссылки истек!")
             long_url = db_url.long_url
-            background_tasks.add_task(cache_url, redis, slug, long_url, settings.REDIS_CACHE_TTL)
+            background_tasks.add_task(cache_url, redis, slug, long_url, db_url.ttl, settings.REDIS_CACHE_TTL)
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
     

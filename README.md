@@ -13,6 +13,9 @@
     <img src="https://img.shields.io/badge/HTML5-CSS3-orange?style=flat-square&logo=html5" alt="HTML5/CSS3">
     <img src="https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?style=flat-square&logo=javascript" alt="JavaScript">
     <img src="https://img.shields.io/badge/Nginx-1.27-009639?style=flat-square&logo=nginx" alt="Nginx">
+    <a href="https://github.com/kite-house/URL-Shortener/actions/workflows/ci.yml">
+    <img src="https://github.com/kite-house/URL-Shortener/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+    </a>
   </p>
 </div>
 
@@ -29,6 +32,7 @@
 - 🐳 **Docker-first подход** — весь стек поднимается одной командой.
 - 🛡️ **Защита API** — встроенное ограничение запросов с автоблокировкой.
 - 📈 **Точная аналитика** — автоматический сброс данных из Redis в PostgreSQL.
+- 🔄 **CI/CD пайплайн** — автоматическое тестирование через GitHub Actions.
 
 ## 🛠 Стек технологий
 
@@ -45,6 +49,7 @@
 | **Контейнеризация** | [Docker](https://www.docker.com/) + [Docker Compose](https://docs.docker.com/compose/) |
 | **Тестирование** | [Pytest](https://docs.pytest.org/) |
 | **Нагрузочное тестирование** | [Locust](https://locust.io/) |
+| **CI/CD** | [GitHub Actions](https://github.com/features/actions) |
 
 ## 🚀 Быстрый старт
 

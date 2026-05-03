@@ -4,12 +4,13 @@ from src.core.logging import logger
 
 
 class RedisService:
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, db: int = 0):
         self.settings = settings
         self.client = AsyncRedis(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             password=settings.REDIS_PASSWORD,
+            db=db,
             decode_responses=True
         )
     

@@ -60,10 +60,6 @@ class Settings(BaseSettings):
     def DB_URL(self):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
     
-    @property
-    def RANDOM_SLUG_LENGTH(self):
-        return random.randint(self.SLUG_MIN_LENGTH, self.SLUG_MAX_LENGTH)
-    
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()

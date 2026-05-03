@@ -18,6 +18,6 @@ def ValidOutputUrl(func):
 
 @ValidOutputUrl
 async def create_url(session: SessionDep, settings: SettingsDep, length: int = None) -> str: 
-    if not length: length = settings.RANDOM_SLUG_LENGTH
+    if not length: length = random.randint(settings.SLUG_MIN_LENGTH, settings.SLUG_MAX_LENGTH)
 
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))

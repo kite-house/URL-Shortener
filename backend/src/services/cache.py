@@ -4,8 +4,9 @@ from datetime import datetime, timezone
 
 from src.core.redis import RedisService
 from src.core.logging import logger
+from src.core.config import settings
 
-async def cache_url(redis: RedisService, slug: str, url: str, expires_at: datetime, ttl: int = 86400) -> None:
+async def cache_url(redis: RedisService, slug: str, url: str, expires_at: datetime, ttl: int = settings.REDIS_CACHE_TTL) -> None:
     """Фоновая задача для кэширования URL в Redis"""
     try:
         cache_data = {

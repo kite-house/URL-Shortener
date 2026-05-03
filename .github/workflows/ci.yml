@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [ "dev", "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run tests with Docker Compose
+        run: |
+          docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from test_runner
+      
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v

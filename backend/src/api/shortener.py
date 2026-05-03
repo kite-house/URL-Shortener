@@ -146,9 +146,5 @@ async def redirect(session: SessionDep, settings: SettingsDep, redis: RedisDep, 
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
     
-    count_clicks_in_cache = await increment_click_counter(redis, slug)
-    if count_clicks_in_cache >= 10:
-        await crud.increment_count_clicks(session, slug, count_clicks_in_cache)
-        await reset_click_counter(redis, slug)
-
+    await increment_click_counter(redis, slug)
     return RedirectResponse(long_url, status_code = status.HTTP_302_FOUND)

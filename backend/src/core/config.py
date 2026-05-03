@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_BAN_LENGTH: str = "3m"      # Длительность бана
     RATE_LIMIT_SITE_BAN: bool = True       # Блокировать весь сайт
     
+    ANALYTICS_FLUSH_INTERVAL: int = 10
     
     model_config = SettingsConfigDict(
         env_file= str(DOTENV),

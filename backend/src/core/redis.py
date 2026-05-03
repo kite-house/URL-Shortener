@@ -1,4 +1,6 @@
 from redis.asyncio import Redis as AsyncRedis
+from typing import Optional, Tuple, Dict
+
 from src.core.config import Settings
 from src.core.logging import logger
 
@@ -14,38 +16,43 @@ class RedisService:
             decode_responses=True
         )
     
-    async def get(self, key: str) -> str | None:
-        """Добавление ключа"""
+    async def get(self, key: str) -> Optional[str]:
+        """Получение значения по ключу"""
         return await self.client.get(key)
     
-    async def setex(self, key: str, time: int, value: str) -> bool:
-        """Добавление ключа на время"""
-        return await self.client.setex(key, time, value)
+    async def setex(self, key: str, ttl: int, value: str) -> bool:
+        """Установка значения с временем жизни (TTL в секундах)"""
+        return await self.client.setex(key, ttl, value)
     
     async def ping(self) -> bool:
-        """Проверка соединения с Redis"""
+        """Проверка доступности Redis"""
         return await self.client.ping()
     
     async def close(self) -> None:
-        """Закрытие соединения"""
+        """Закрытие соединения с Redis"""
         await self.client.close()
     
     async def delete(self, key: str) -> bool:
-        """Удаление ключа из Redis"""
-        return await self.client.delete(key)
+        """Удаление ключа"""
+        return await self.client.delete(key) > 0
     
-    async def hdel(self, key: str, field) -> int:
-        """Удаление ключа в хэше"""
+    async def hdel(self, key: str, field: str) -> int:
+        """Удаление поля в хэше"""
         return await self.client.hdel(key, field)
     
     async def exists(self, key: str) -> bool:
         """Проверка существования ключа"""
         return await self.client.exists(key) > 0
     
-    async def incr(self, key: str, amount: int = 1) -> bool:
-        """Увелечение значение ключа"""
+    async def incr(self, key: str, amount: int = 1) -> int:
+        """Увеличение значения ключа"""
         return await self.client.incr(key, amount)
     
     async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
-        """Увелечение значение ключа в хэше"""
+        """Увеличение значения поля в хэше"""
         return await self.client.hincrby(key, field, amount)
+    
+    async def hscan(self, key: str, cursor: int, count: int = 100) -> Tuple[int, Dict[str, str]]:
+        """ Итеративный обход хэша без блокировки."""
+        return await self.client.hscan(key, cursor, count=count)
+    

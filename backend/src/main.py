@@ -1,15 +1,45 @@
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
-from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi_easylimiter import RateLimitMiddleware
+from contextlib import asynccontextmanager
+from pathlib import Path
+import asyncio
 
 from src.core.config import settings
 from src.core.logging import logger
 from src.core.redis import RedisService
 from src.api.shortener import router as shortener_router
 from src.api.configuration import router as configuration_router
+from src.db.db import async_session
+from src.db.crud import increment_count_clicks
 
+async def analytics_flusher(redis: RedisService):
+    while True:
+        await asyncio.sleep(settings.ANALYTICS_FLUSH_INTERVAL)
+
+        try:
+            cursor = 0
+            processed = 0
+            
+            async with async_session() as session:
+                while True:
+                    cursor, batch = await redis.hscan("counter_transmissions", cursor, count=100)
+                    
+                    for key, value in batch.items():
+                        await increment_count_clicks(session, key, int(value))
+                        processed += 1
+                    
+                    if processed > 0:
+                        await session.commit()
+                    
+                    if cursor == 0:
+                        break
+            
+            if processed > 0:
+                await redis.delete("counter_transmissions")
+            
+        except Exception as error:
+            logger.error(str(error))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,9 +52,14 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Redis подключен для rate limiting")
         else:
             logger.error("❌ Не удалось подключиться к Redis!")
+
+    analytics_redis = RedisService(settings)
+    analytics_flusher_task = asyncio.create_task(analytics_flusher(analytics_redis))
+
     
     yield
 
+    analytics_flusher_task.cancel()
 
 app = FastAPI(
     title=settings.APP_NAME,

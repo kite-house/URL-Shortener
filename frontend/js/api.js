@@ -78,6 +78,10 @@ const API = (function() {
             } else if (data.message) {
                 errorMessage = data.message;
             }
+
+            if (response.status === 429 || response.status === 403) {
+                errorMessage = "Превышено количество запросов"
+            }
             
             throw new Error(errorMessage);
         }

@@ -10,7 +10,7 @@ from src.services.url_checker import is_url_available
 from src.db import crud 
 from src.api.dependencies import SessionDep, SettingsDep, RedisDep, get_length_query, validate_custom_slug
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
-from src.services.cache import cache_url, get_cached_url, increment_click_counter, reset_click_counter
+from src.services.cache import cache_url, get_cached_url, increment_click_counter
 from src.core.logging import logger
 
 router = APIRouter(prefix = '/api')
@@ -146,9 +146,5 @@ async def redirect(session: SessionDep, settings: SettingsDep, redis: RedisDep, 
         except NoResultFound:
             raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Ссылка не найдена!')
     
-    count_clicks_in_cache = await increment_click_counter(redis, slug)
-    if count_clicks_in_cache >= 10:
-        await crud.increment_count_clicks(session, slug, count_clicks_in_cache)
-        await reset_click_counter(redis, slug)
-
+    await increment_click_counter(redis, slug)
     return RedirectResponse(long_url, status_code = status.HTTP_302_FOUND)

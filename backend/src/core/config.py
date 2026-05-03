@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Dict, Tuple
 from functools import lru_cache
 from pathlib import Path
 import random
@@ -33,6 +33,23 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["*"]
     ALLOWED_METHODS: List[str] = ["*"]
     ALLOWED_HEADERS: List[str] = ["*"]
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REDIS_DB: int = 1
+
+    RATE_LIMIT_RULES: Dict[str, Tuple[int, int, str]] = {
+        "/*": (100, 3600, "moving"),           # Глобально: 100 запросов/час
+        "/api/shorten": (10, 60, "fixed"),     # Создание ссылок: 10/мин
+        "/api/info/*": (60, 60, "moving"),     # Информация: 60/мин
+        "/{slug}": (120, 60, "moving"),        # Редирект: 120/мин
+    }
+    
+    # Автобан
+    RATE_LIMIT_BAN_OFFENSES: int = 15      # Кол-во нарушений до бана
+    RATE_LIMIT_BAN_LENGTH: str = "3m"      # Длительность бана
+    RATE_LIMIT_SITE_BAN: bool = True       # Блокировать весь сайт
+    
+    ANALYTICS_FLUSH_INTERVAL: int = 10
     
     model_config = SettingsConfigDict(
         env_file= str(DOTENV),
@@ -43,10 +60,6 @@ class Settings(BaseSettings):
     @property
     def DB_URL(self):
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASS}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    
-    @property
-    def RANDOM_SLUG_LENGTH(self):
-        return random.randint(self.SLUG_MIN_LENGTH, self.SLUG_MAX_LENGTH)
     
 @lru_cache
 def get_settings() -> Settings:

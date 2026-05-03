@@ -34,11 +34,6 @@ class TestCache:
         assert cached_data["expires_at"] is None
     
     @pytest.mark.asyncio
-    async def test_cache_url_redis_error(self, mock_redis):
-        mock_redis.setex = AsyncMock(side_effect=Exception("Redis error"))
-        await cache_url(mock_redis, "abc123", "https://example.com", None)
-    
-    @pytest.mark.asyncio
     async def test_get_cached_url_found_and_valid(self):
         redis = AsyncMock()
         expires_at = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()

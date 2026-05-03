@@ -10,7 +10,7 @@ from src.services.url_checker import is_url_available
 from src.db import crud 
 from src.api.dependencies import SessionDep, SettingsDep, RedisDep, get_length_query, validate_custom_slug
 from src.core.exceptions import URLAlreadyRegistered, SlugAlreadyRegistered
-from src.services.cache import cache_url, get_cached_url, increment_click_counter, reset_click_counter
+from src.services.cache import cache_url, get_cached_url, increment_click_counter
 from src.core.logging import logger
 
 router = APIRouter(prefix = '/api')

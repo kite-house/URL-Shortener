@@ -8,14 +8,14 @@ from src.core.config import settings
 
 async def cache_url(redis: RedisService, slug: str, url: str, expires_at: datetime, ttl: int = settings.REDIS_CACHE_TTL) -> None:
     """Фоновая задача для кэширования URL в Redis"""
-    try:
-        cache_data = {
-            "long_url": url, 
-            "expires_at": expires_at.isoformat() if expires_at else None
-        }
-        await redis.setex(slug, ttl, json.dumps(cache_data))
-    except Exception as e:
-        logger.error(str(e))
+
+    cache_data = {
+        "long_url": url, 
+        "expires_at": expires_at.isoformat() if expires_at else None
+    }
+    
+    await redis.setex(slug, ttl, json.dumps(cache_data))
+
 
 async def get_cached_url(redis: RedisService, slug: str) -> tuple[str | None, bool]:
     """Получить URL из кэша с проверкой срока действия"""
@@ -39,16 +39,5 @@ async def get_cached_url(redis: RedisService, slug: str) -> tuple[str | None, bo
     
 async def increment_click_counter(redis: RedisService, slug) -> Optional[int]:
     """Увеличить счётчик кликов, вернуть новое значение"""
-    try:
-        return await redis.hincrby("counter_transmissions", slug)
-    except Exception as e:
-        logger.error(str(e))
-        return None
-    
-async def reset_click_counter(redis: RedisService, slug: str) -> None:
-    """Сбросить счётчик кликов для слага"""
-    try:
-        await redis.hdel("counter_transmissions", slug)
-    except Exception as e:
-        logger.error(str(e))
-        return None
+
+    return await redis.hincrby("counter_transmissions", slug)
